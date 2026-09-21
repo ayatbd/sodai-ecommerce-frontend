@@ -1,0 +1,6 @@
+{
+  "name": "AURA — Modern Lifestyle & Design Store",
+  "description": "A premium modern ecommerce platform featuring high-fidelity design, Redux Toolkit state architecture, RTK Query API layer, and seamless shopping experience.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
