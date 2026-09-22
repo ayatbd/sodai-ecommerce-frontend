@@ -11,15 +11,22 @@ import { useGetCategoriesQuery } from '../../services/api';
 
 interface BreadcrumbsProps {
   onNavigate?: (path: string) => void;
+  product?: {
+    id: string;
+    name: string;
+    slug?: string;
+    category: string;
+  };
 }
 
-export function Breadcrumbs({ onNavigate }: BreadcrumbsProps) {
+export function Breadcrumbs({ onNavigate, product }: BreadcrumbsProps) {
   const dispatch = useAppDispatch();
   const { category, searchQuery } = useAppSelector((state) => state.discovery);
   const { data: categories = [] } = useGetCategoriesQuery();
 
+  const activeCategory = product?.category || category;
   const activeCategoryObj = categories.find(
-    (c) => c.slug.toLowerCase() === category.toLowerCase()
+    (c) => c.slug.toLowerCase() === activeCategory.toLowerCase()
   );
 
   const handleGoHome = (e: React.MouseEvent) => {
@@ -42,6 +49,17 @@ export function Breadcrumbs({ onNavigate }: BreadcrumbsProps) {
       onNavigate('/shop');
     } else {
       window.history.pushState({}, '', '/shop');
+    }
+  };
+
+  const handleGoCategory = (catSlug: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    dispatch(setCategory(catSlug));
+    dispatch(setCurrentView('shop'));
+    if (onNavigate) {
+      onNavigate(`/categories/${catSlug}`);
+    } else {
+      window.history.pushState({}, '', `/categories/${catSlug}`);
     }
   };
 
@@ -72,36 +90,48 @@ export function Breadcrumbs({ onNavigate }: BreadcrumbsProps) {
           <a
             href="/shop"
             onClick={handleGoShop}
-            className={`hover:text-neutral-900 dark:hover:text-white transition-colors ${
-              category === 'all' && !searchQuery
-                ? 'text-neutral-900 dark:text-white font-semibold'
-                : ''
-            }`}
+            className="hover:text-neutral-900 dark:hover:text-white transition-colors"
           >
             Shop
           </a>
         </li>
 
-        {/* 3. Category (if active) */}
-        {category && category !== 'all' && (
+        {/* 3. Category */}
+        {activeCategory && activeCategory !== 'all' && (
           <>
             <li aria-hidden="true" className="text-neutral-300 dark:text-neutral-700">
               <ChevronRight className="h-3.5 w-3.5" />
             </li>
             <li className="flex items-center">
-              <span
-                className={`truncate max-w-[160px] ${
-                  !searchQuery ? 'text-neutral-900 dark:text-white font-semibold' : ''
+              <a
+                href={`/categories/${activeCategory}`}
+                onClick={handleGoCategory(activeCategory)}
+                className={`hover:text-neutral-900 dark:hover:text-white transition-colors capitalize ${
+                  !product ? 'text-neutral-900 dark:text-white font-semibold' : ''
                 }`}
               >
-                {activeCategoryObj?.name || category.charAt(0).toUpperCase() + category.slice(1)}
+                {activeCategoryObj?.name || activeCategory}
+              </a>
+            </li>
+          </>
+        )}
+
+        {/* 4. Product Title */}
+        {product && (
+          <>
+            <li aria-hidden="true" className="text-neutral-300 dark:text-neutral-700">
+              <ChevronRight className="h-3.5 w-3.5" />
+            </li>
+            <li className="flex items-center">
+              <span className="text-neutral-900 dark:text-white font-semibold truncate max-w-[240px] sm:max-w-[360px]">
+                {product.name}
               </span>
             </li>
           </>
         )}
 
-        {/* 4. Search Query (if searching) */}
-        {searchQuery && (
+        {/* 5. Search Query (if searching and not on product detail) */}
+        {!product && searchQuery && (
           <>
             <li aria-hidden="true" className="text-neutral-300 dark:text-neutral-700">
               <ChevronRight className="h-3.5 w-3.5" />

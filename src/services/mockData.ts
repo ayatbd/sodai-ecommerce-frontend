@@ -1,4 +1,16 @@
-import { Product, ProductCategory, ProductReview, Coupon, ShippingMethod, Address, Order, AdminStats, User } from '../types';
+import {
+  Product,
+  ProductCategory,
+  ProductReview,
+  Coupon,
+  ShippingMethod,
+  Address,
+  Order,
+  AdminStats,
+  User,
+  VariantGroup,
+  VariantOption,
+} from '../types';
 
 export const INITIAL_USER: User = {
   id: 'usr-default-1',
@@ -78,7 +90,7 @@ export const BRANDS = [
   'Stilform Labs',
 ];
 
-export const INITIAL_PRODUCTS: Product[] = [
+const RAW_PRODUCTS: Product[] = [
   {
     id: 'prod-1',
     name: 'AURA Pulse Wireless Headphones',
@@ -653,6 +665,147 @@ export const INITIAL_PRODUCTS: Product[] = [
     ],
   },
 ];
+
+function enrichProduct(p: Product): Product {
+  const isOutOfStock = !p.inStock || p.stockCount === 0;
+
+  // 1. Color Variant Group
+  const colorOptions: VariantOption[] = (p.colors && p.colors.length > 0)
+    ? p.colors.map((c, i) => ({
+        id: `col-${i}-${c.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+        name: c.name,
+        value: c.name,
+        colorHex: c.hex,
+        image: p.images?.[i] || p.images?.[0],
+        inStock: isOutOfStock ? false : (i === 2 ? false : true), // 3rd color disabled/out of stock for demo
+        stockCount: isOutOfStock ? 0 : (i === 2 ? 0 : Math.max(2, (p.stockCount || 12) - i * 3)),
+      }))
+    : [
+        {
+          id: 'col-default',
+          name: 'Signature Finish',
+          value: 'Signature Finish',
+          colorHex: '#1c1917',
+          image: p.images?.[0],
+          inStock: !isOutOfStock,
+          stockCount: p.stockCount || 10,
+        },
+      ];
+
+  // 2. Size / Form Factor Variant Group
+  const sizeOptions: VariantOption[] = [
+    {
+      id: 'size-standard',
+      name: p.category === 'carry' ? '20L Daily' : p.category === 'workspace' ? 'Standard' : 'Studio Over-Ear',
+      value: 'standard',
+      inStock: !isOutOfStock,
+      stockCount: isOutOfStock ? 0 : Math.max(1, p.stockCount || 10),
+      priceOffset: 0,
+    },
+    {
+      id: 'size-extended',
+      name: p.category === 'carry' ? '28L Travel (+ $35)' : p.category === 'workspace' ? 'Extended Pro (+ $25)' : 'Memory Foam XL (+ $25)',
+      value: 'extended',
+      inStock: !isOutOfStock,
+      stockCount: isOutOfStock ? 0 : Math.max(1, Math.floor((p.stockCount || 10) / 2)),
+      priceOffset: p.category === 'carry' ? 35.00 : 25.00,
+    },
+  ];
+
+  // 3. Material Variant Group
+  const materialOptions: VariantOption[] = [
+    {
+      id: 'mat-core',
+      name: p.material?.split(',')?.[0]?.trim() || 'Matte Aerospace Alloy',
+      value: 'core',
+      inStock: !isOutOfStock,
+      stockCount: isOutOfStock ? 0 : (p.stockCount || 10),
+      priceOffset: 0,
+    },
+    {
+      id: 'mat-premium',
+      name: p.category === 'audio' ? 'Perforated Nappa Leather (+ $45)' : 'Hand-Brushed Brass Accents (+ $45)',
+      value: 'premium',
+      inStock: !isOutOfStock,
+      stockCount: isOutOfStock ? 0 : Math.max(1, Math.floor((p.stockCount || 10) / 3)),
+      priceOffset: 45.00,
+    },
+  ];
+
+  // 4. Custom Edition Group
+  const editionOptions: VariantOption[] = [
+    {
+      id: 'ed-standard',
+      name: 'Standard Studio Packaging',
+      value: 'standard',
+      inStock: !isOutOfStock,
+      stockCount: isOutOfStock ? 0 : (p.stockCount || 10),
+      priceOffset: 0,
+    },
+    {
+      id: 'ed-collectors',
+      name: "Collector's Monograph Box (+ $65)",
+      value: 'collectors',
+      inStock: !isOutOfStock,
+      stockCount: isOutOfStock ? 0 : 3,
+      priceOffset: 65.00,
+    },
+  ];
+
+  const variantGroups: VariantGroup[] = [
+    {
+      id: 'group-color',
+      name: 'Color Finish',
+      type: 'color',
+      required: true,
+      options: colorOptions,
+    },
+    {
+      id: 'group-size',
+      name: 'Form & Sizing',
+      type: 'size',
+      required: false,
+      options: sizeOptions,
+    },
+    {
+      id: 'group-material',
+      name: 'Material Grade',
+      type: 'material',
+      required: false,
+      options: materialOptions,
+    },
+    {
+      id: 'group-edition',
+      name: 'Packaging Edition',
+      type: 'custom',
+      required: false,
+      options: editionOptions,
+    },
+  ];
+
+  const specifications: Record<string, string> = {
+    'Dimensions': p.dimensions || '210 × 170 × 60 mm',
+    'Primary Materials': p.material || 'Anodized 6061 Aluminum, Stainless Steel',
+    'Studio Brand': p.brand || 'AURA Studio',
+    'Origin & Engineering': 'Designed in San Francisco, Engineered in California',
+    'Hardware Guarantee': '2-Year Limited Studio Guarantee (parts & labor)',
+    'Acoustic / Precision Tuning': p.category === 'audio' ? 'Beryllium Transducers with Dual Resonant Chambers' : 'Precision CNC Machined Tolerances (0.01mm)',
+    'Interface & Connectivity': p.category === 'audio' ? 'Bluetooth 5.3 (aptX Lossless, LDAC), 3.5mm Analog Audio' : 'Standard USB-C High-Speed Interface',
+    'What Is In The Box': 'Device, Braided Armored Cable, Microfiber Cloth, Calibration Certificate',
+    'Environmental Compliance': 'Carbon-neutral certified, 100% plastic-free recycled pulp packaging',
+  };
+
+  return {
+    ...p,
+    variants: p.variants || variantGroups,
+    specifications: p.specifications || specifications,
+    shippingInfo: p.shippingInfo || 'Complimentary carbon-neutral standard delivery on orders over $150. Orders before 2:00 PM PST ship same day.',
+    returnPolicy: p.returnPolicy || '30-Day risk-free trial. Enjoy complimentary return postage with full refund in original packaging.',
+    warranty: p.warranty || '2-Year Comprehensive Studio Guarantee against manufacturing and material flaws.',
+  };
+}
+
+export const INITIAL_PRODUCTS: Product[] = RAW_PRODUCTS.map(enrichProduct);
 
 export const INITIAL_REVIEWS: ProductReview[] = [
   {

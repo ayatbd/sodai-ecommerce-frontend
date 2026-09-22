@@ -31,7 +31,30 @@ export interface ProductReview {
   title: string;
   comment: string;
   verifiedPurchase: boolean;
+  isApproved?: boolean;
+  helpfulCount?: number;
   createdAt: string;
+}
+
+export interface VariantOption {
+  id: string;
+  name: string;
+  value: string;
+  priceOverride?: number;
+  priceOffset?: number;
+  stockCount: number;
+  inStock: boolean;
+  image?: string;
+  sku?: string;
+  colorHex?: string;
+}
+
+export interface VariantGroup {
+  id: string;
+  name: string;
+  type: 'color' | 'size' | 'material' | 'edition' | 'custom';
+  required?: boolean;
+  options: VariantOption[];
 }
 
 export interface Product {
@@ -56,12 +79,21 @@ export interface Product {
   dimensions?: string;
   material?: string;
   colors?: { name: string; hex: string }[];
+  variants?: VariantGroup[];
+  specifications?: Record<string, string>;
+  shippingInfo?: string;
+  returnPolicy?: string;
+  warranty?: string;
 }
 
 export interface CartItem {
   product: Product;
   quantity: number;
   selectedColor?: string;
+  selectedSize?: string;
+  selectedMaterial?: string;
+  selectedVariants?: Record<string, string>;
+  unitPrice?: number;
 }
 
 export interface Coupon {

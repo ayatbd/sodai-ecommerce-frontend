@@ -10,6 +10,7 @@ import {
   User,
   ProductFilters,
   ShippingMethod,
+  CartItem,
 } from '../types';
 import {
   INITIAL_PRODUCTS,
@@ -32,6 +33,7 @@ const STORAGE_KEYS = {
   ADDRESSES: 'aura_addresses_v1',
   ORDERS: 'aura_orders_v1',
   STATS: 'aura_admin_stats_v1',
+  CART: 'aura_cart_state_v1',
 };
 
 function getStored<T>(key: string, fallback: T): T {
@@ -62,7 +64,7 @@ let statsStore = getStored<AdminStats>(STORAGE_KEYS.STATS, INITIAL_ADMIN_STATS);
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fakeBaseQuery(),
-  tagTypes: ['Product', 'Category', 'Review', 'Coupon', 'Address', 'Order', 'User', 'AdminData'],
+  tagTypes: ['Product', 'Category', 'Review', 'Coupon', 'Address', 'Order', 'User', 'AdminData', 'Cart'],
   endpoints: (builder) => ({
     // 1. PRODUCTS
     getProducts: builder.query<Product[], ProductFilters | void>({
@@ -172,15 +174,32 @@ export const apiSlice = createApi({
     }),
 
     getProductById: builder.query<Product, string>({
-      async queryFn(id) {
-        await sleep(250);
-        const product = productsStore.find((p) => p.id === id);
+      async queryFn(idOrSlug) {
+        await sleep(200);
+        const product = productsStore.find(
+          (p) => p.id === idOrSlug || p.slug === idOrSlug || p.slug?.toLowerCase() === idOrSlug?.toLowerCase()
+        );
         if (!product) {
           return { error: { status: 404, data: 'Product not found' } };
         }
         return { data: product };
       },
       providesTags: (_result, _error, id) => [{ type: 'Product', id }],
+    }),
+
+    getProductBySlug: builder.query<Product, string>({
+      async queryFn(slugOrId) {
+        await sleep(200);
+        const product = productsStore.find(
+          (p) => p.slug === slugOrId || p.id === slugOrId || p.slug?.toLowerCase() === slugOrId?.toLowerCase()
+        );
+        if (!product) {
+          return { error: { status: 404, data: 'Product not found' } };
+        }
+        return { data: product };
+      },
+      providesTags: (result, _error, slug) =>
+        result ? [{ type: 'Product', id: result.id }, { type: 'Product', id: slug }] : [{ type: 'Product', id: slug }],
     }),
 
     createProduct: builder.mutation<Product, Omit<Product, 'id' | 'rating' | 'reviewCount'>>({
@@ -495,6 +514,88 @@ export const apiSlice = createApi({
         };
       },
     }),
+
+    // 12. CART (RTK Query Cache & Persistent Storage)
+    getCart: builder.query<CartItem[], void>({
+      async queryFn() {
+        const stored = getStored<{ items: CartItem[] }>(STORAGE_KEYS.CART, { items: [] });
+        return { data: stored.items || [] };
+      },
+      providesTags: [{ type: 'Cart', id: 'ITEMS' }],
+    }),
+
+    addToCartMutation: builder.mutation<
+      CartItem[],
+      {
+        product: Product;
+        quantity?: number;
+        color?: string;
+        size?: string;
+        material?: string;
+        selectedVariants?: Record<string, string>;
+        unitPrice?: number;
+      }
+    >({
+      async queryFn(payload) {
+        await sleep(150);
+        const stored = getStored<{ items: CartItem[]; appliedCoupon: any; shippingMethod: any }>(
+          STORAGE_KEYS.CART,
+          { items: [], appliedCoupon: null, shippingMethod: null }
+        );
+        const items = [...(stored.items || [])];
+        const { product, quantity = 1, color, size, material, selectedVariants, unitPrice } = payload;
+        const variantKey = selectedVariants ? JSON.stringify(selectedVariants) : (color || '');
+
+        const existingIndex = items.findIndex((item) => {
+          if (item.product.id !== product.id) return false;
+          if (selectedVariants && item.selectedVariants) {
+            return JSON.stringify(item.selectedVariants) === variantKey;
+          }
+          return (!color || item.selectedColor === color) && (!size || item.selectedSize === size);
+        });
+
+        if (existingIndex > -1) {
+          items[existingIndex].quantity += quantity;
+          if (unitPrice) items[existingIndex].unitPrice = unitPrice;
+        } else {
+          items.push({
+            product,
+            quantity,
+            selectedColor: color || (product.colors?.[0]?.name ?? undefined),
+            selectedSize: size,
+            selectedMaterial: material,
+            selectedVariants: selectedVariants || (color ? { Color: color } : undefined),
+            unitPrice: unitPrice || product.price,
+          });
+        }
+
+        const newCartState = {
+          ...stored,
+          items,
+        };
+        setStored(STORAGE_KEYS.CART, newCartState);
+        return { data: items };
+      },
+      invalidatesTags: [{ type: 'Cart', id: 'ITEMS' }],
+    }),
+
+    checkCustomerEligibility: builder.query<
+      { eligible: boolean; hasPurchased: boolean },
+      { productId: string; userId?: string }
+    >({
+      async queryFn({ productId, userId }) {
+        await sleep(100);
+        if (!userId) return { data: { eligible: false, hasPurchased: false } };
+        // Check if this user has any completed/delivered/processing order with this product
+        const hasPurchased = ordersStore.some(
+          (o) =>
+            (o.userId === userId || !o.userId) &&
+            o.items.some((item) => item.productId === productId)
+        );
+        return { data: { eligible: hasPurchased, hasPurchased } };
+      },
+      providesTags: (_res, _err, arg) => [{ type: 'Order', id: arg.productId }],
+    }),
   }),
 });
 
@@ -504,6 +605,7 @@ export const {
   useGetFeaturedProductsQuery,
   useGetNewArrivalsQuery,
   useGetProductByIdQuery,
+  useGetProductBySlugQuery,
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
@@ -524,4 +626,7 @@ export const {
   useUpdateUserProfileMutation,
   useGetAdminStatsQuery,
   useSubscribeNewsletterMutation,
+  useGetCartQuery,
+  useAddToCartMutationMutation,
+  useCheckCustomerEligibilityQuery,
 } = apiSlice;

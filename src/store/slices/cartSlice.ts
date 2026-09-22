@@ -48,22 +48,39 @@ export const cartSlice = createSlice({
   reducers: {
     addToCart: (
       state,
-      action: PayloadAction<{ product: Product; quantity?: number; color?: string }>
+      action: PayloadAction<{
+        product: Product;
+        quantity?: number;
+        color?: string;
+        size?: string;
+        material?: string;
+        selectedVariants?: Record<string, string>;
+        unitPrice?: number;
+      }>
     ) => {
-      const { product, quantity = 1, color } = action.payload;
-      const existingIndex = state.items.findIndex(
-        (item) =>
-          item.product.id === product.id &&
-          (color ? item.selectedColor === color : true)
-      );
+      const { product, quantity = 1, color, size, material, selectedVariants, unitPrice } = action.payload;
+      const variantKey = selectedVariants ? JSON.stringify(selectedVariants) : (color || '');
+
+      const existingIndex = state.items.findIndex((item) => {
+        if (item.product.id !== product.id) return false;
+        if (selectedVariants && item.selectedVariants) {
+          return JSON.stringify(item.selectedVariants) === variantKey;
+        }
+        return (!color || item.selectedColor === color) && (!size || item.selectedSize === size);
+      });
 
       if (existingIndex > -1) {
         state.items[existingIndex].quantity += quantity;
+        if (unitPrice) state.items[existingIndex].unitPrice = unitPrice;
       } else {
         state.items.push({
           product,
           quantity,
           selectedColor: color || (product.colors?.[0]?.name ?? undefined),
+          selectedSize: size,
+          selectedMaterial: material,
+          selectedVariants: selectedVariants || (color ? { Color: color } : undefined),
+          unitPrice: unitPrice || product.price,
         });
       }
       persistCart(state);

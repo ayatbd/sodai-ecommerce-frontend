@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { store } from './store';
 import { useAppDispatch, useAppSelector } from './store/hooks';
-import { removeToast } from './store/slices/uiSlice';
+import { removeToast, setCurrentView, viewProductDetail } from './store/slices/uiSlice';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import HomePage from './app/(store)/page';
@@ -32,6 +32,34 @@ function AppContent() {
       root.classList.remove('dark');
     }
   }, [theme]);
+
+  // Synchronize browser URL on load and back/forward navigation
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const path = window.location.pathname;
+      if (path.startsWith('/products/')) {
+        const slug = path.replace('/products/', '').split('/')[0];
+        if (slug) {
+          dispatch(viewProductDetail(slug));
+          dispatch(setCurrentView('product-detail'));
+        }
+      } else if (path === '/checkout') {
+        dispatch(setCurrentView('checkout'));
+      } else if (path === '/shop') {
+        dispatch(setCurrentView('shop'));
+      } else if (path === '/orders') {
+        dispatch(setCurrentView('orders'));
+      } else if (path === '/addresses') {
+        dispatch(setCurrentView('addresses'));
+      } else if (path === '/admin') {
+        dispatch(setCurrentView('admin'));
+      }
+    };
+
+    handleLocationChange();
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, [dispatch]);
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-50/50 text-neutral-900 antialiased selection:bg-neutral-900 selection:text-white dark:bg-neutral-950 dark:text-neutral-50 dark:selection:bg-neutral-100 dark:selection:text-neutral-900 font-sans">
