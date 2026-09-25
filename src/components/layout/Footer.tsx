@@ -366,6 +366,20 @@ export function Footer() {
                       Track Order & Invoices
                     </button>
                   </li>
+                  <li>
+                    <button
+                      onClick={() => {
+                        dispatch(setCurrentView('login'));
+                        if (typeof window !== 'undefined') {
+                          window.history.pushState({}, '', '/login');
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
+                      className="transition-colors hover:text-neutral-950 dark:hover:text-white text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 rounded-xs"
+                    >
+                      Member Sign In & Access
+                    </button>
+                  </li>
                 </ul>
               </nav>
             </div>

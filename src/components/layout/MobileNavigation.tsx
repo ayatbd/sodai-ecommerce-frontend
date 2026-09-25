@@ -90,8 +90,11 @@ export function MobileNavigation() {
 
   const handleOpenAuth = (tab: 'login' | 'register') => {
     closeMenu();
-    dispatch(setAuthModalTab(tab));
-    dispatch(setAuthModalOpen(true));
+    dispatch(setCurrentView(tab));
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', `/${tab}`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleLogout = () => {

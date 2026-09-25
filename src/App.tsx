@@ -12,6 +12,11 @@ import { CheckoutView } from './features/checkout/CheckoutView';
 import { OrderHistory } from './features/orders/OrderHistory';
 import { AddressBook } from './features/addresses/AddressBook';
 import { AdminDashboard } from './features/admin/AdminDashboard';
+import { LoginPage } from './features/auth/LoginPage';
+import { RegisterPage } from './features/auth/RegisterPage';
+import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
+import { VerifyEmailPage } from './features/auth/VerifyEmailPage';
 import { CartDrawer } from './features/cart/CartDrawer';
 import { WishlistDrawer } from './features/wishlist/WishlistDrawer';
 import { ProductQuickViewModal } from './features/products/ProductQuickViewModal';
@@ -53,6 +58,16 @@ function AppContent() {
         dispatch(setCurrentView('addresses'));
       } else if (path === '/admin') {
         dispatch(setCurrentView('admin'));
+      } else if (path === '/login') {
+        dispatch(setCurrentView('login'));
+      } else if (path === '/register') {
+        dispatch(setCurrentView('register'));
+      } else if (path === '/forgot-password') {
+        dispatch(setCurrentView('forgot-password'));
+      } else if (path === '/reset-password') {
+        dispatch(setCurrentView('reset-password'));
+      } else if (path === '/verify-email') {
+        dispatch(setCurrentView('verify-email'));
       }
     };
 
@@ -75,6 +90,11 @@ function AppContent() {
         {currentView === 'orders' && <OrderHistory />}
         {currentView === 'addresses' && <AddressBook />}
         {currentView === 'admin' && <AdminDashboard />}
+        {currentView === 'login' && <LoginPage />}
+        {currentView === 'register' && <RegisterPage />}
+        {currentView === 'forgot-password' && <ForgotPasswordPage />}
+        {currentView === 'reset-password' && <ResetPasswordPage />}
+        {currentView === 'verify-email' && <VerifyEmailPage />}
       </main>
 
       {/* Persistent Footer */}

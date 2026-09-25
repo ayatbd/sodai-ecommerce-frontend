@@ -5,6 +5,7 @@ export interface User {
   avatar?: string;
   role: 'customer' | 'admin';
   createdAt: string;
+  isEmailVerified?: boolean;
 }
 
 export interface AuthResponse {

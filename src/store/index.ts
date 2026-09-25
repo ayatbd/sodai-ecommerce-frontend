@@ -6,6 +6,8 @@ import checkoutReducer from './slices/checkoutSlice';
 import uiReducer from './slices/uiSlice';
 import discoveryReducer from './slices/discoverySlice';
 import { apiSlice } from '../services/api';
+import { paymentApi } from '../services/paymentApi';
+import { authApi } from '../services/authApi';
 
 export const store = configureStore({
   reducer: {
@@ -16,11 +18,13 @@ export const store = configureStore({
     ui: uiReducer,
     discovery: discoveryReducer,
     [apiSlice.reducerPath]: apiSlice.reducer,
+    [paymentApi.reducerPath]: paymentApi.reducer,
+    [authApi.reducerPath]: authApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
-    }).concat(apiSlice.middleware),
+    }).concat(apiSlice.middleware, paymentApi.middleware, authApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

@@ -1,7 +1,19 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Product, ToastMessage } from '../../types';
 
-export type AppView = 'home' | 'shop' | 'product-detail' | 'checkout' | 'orders' | 'addresses' | 'admin';
+export type AppView =
+  | 'home'
+  | 'shop'
+  | 'product-detail'
+  | 'checkout'
+  | 'orders'
+  | 'addresses'
+  | 'admin'
+  | 'login'
+  | 'register'
+  | 'forgot-password'
+  | 'reset-password'
+  | 'verify-email';
 
 interface UIState {
   theme: 'light' | 'dark';
@@ -34,6 +46,11 @@ const getInitialView = (): AppView => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       const search = window.location.search;
+      if (path === '/login') return 'login';
+      if (path === '/register') return 'register';
+      if (path === '/forgot-password') return 'forgot-password';
+      if (path === '/reset-password') return 'reset-password';
+      if (path === '/verify-email') return 'verify-email';
       if (
         path.startsWith('/shop') ||
         path.startsWith('/search') ||

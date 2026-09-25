@@ -175,6 +175,35 @@ export function AuthModal() {
               error={loginErrors.password?.message}
             />
 
+            <div className="flex items-center justify-between text-xs pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  dispatch(setAuthModalOpen(false));
+                  if (typeof window !== 'undefined') {
+                    window.history.pushState({}, '', '/forgot-password');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }
+                }}
+                className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white underline-offset-4 hover:underline"
+              >
+                Forgot password?
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  dispatch(setAuthModalOpen(false));
+                  if (typeof window !== 'undefined') {
+                    window.history.pushState({}, '', '/login');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }
+                }}
+                className="font-medium text-neutral-800 hover:text-neutral-950 dark:text-neutral-200 dark:hover:text-white underline-offset-4 hover:underline"
+              >
+                Full screen view →
+              </button>
+            </div>
+
             <Button
               type="submit"
               className="w-full mt-2"

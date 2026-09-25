@@ -10,6 +10,8 @@ import {
 } from '../../store/slices/uiSlice';
 import { logout } from '../../store/slices/authSlice';
 import { useGetCurrentUserQuery } from '../../services/api';
+import { useLogoutMutation } from '../../services/authApi';
+import { useNavigateView } from '../../hooks/useNavigateView';
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -24,7 +26,11 @@ interface UserMenuProps {
 
 export function UserMenu({ className = '' }: UserMenuProps) {
   const dispatch = useAppDispatch();
+  const navigate = useNavigateView();
   const auth = useAppSelector((state) => state.auth);
+
+  // RTK Query logout mutation
+  const [logoutMutation] = useLogoutMutation();
 
   // RTK Query hook for live user profile data
   const { data: currentUser } = useGetCurrentUserQuery(undefined, {
@@ -37,11 +43,15 @@ export function UserMenu({ className = '' }: UserMenuProps) {
   const isAdmin = activeUser?.role === 'admin';
 
   const handleOpenAuth = (tab: 'login' | 'register') => {
-    dispatch(setAuthModalTab(tab));
-    dispatch(setAuthModalOpen(true));
+    navigate(tab);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutMutation().unwrap();
+    } catch {
+      // ignore
+    }
     dispatch(logout());
     dispatch(
       addToast({
@@ -53,7 +63,7 @@ export function UserMenu({ className = '' }: UserMenuProps) {
   };
 
   const navigateTo = (view: 'orders' | 'addresses' | 'admin') => {
-    dispatch(setCurrentView(view));
+    navigate(view);
   };
 
   const trigger = (

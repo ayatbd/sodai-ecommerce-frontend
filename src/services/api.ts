@@ -53,13 +53,23 @@ function setStored<T>(key: string, value: T): void {
   }
 }
 
+// Helper to safely clone objects avoiding frozen state references
+const clone = <T>(val: T): T => JSON.parse(JSON.stringify(val));
+
 // Always ensure products store has full catalog with brands
 const storedProducts = getStored<Product[]>(STORAGE_KEYS.PRODUCTS, []);
-let productsStore = storedProducts.length >= INITIAL_PRODUCTS.length ? storedProducts : INITIAL_PRODUCTS;
-let reviewsStore = getStored<ProductReview[]>(STORAGE_KEYS.REVIEWS, INITIAL_REVIEWS);
-let addressesStore = getStored<Address[]>(STORAGE_KEYS.ADDRESSES, INITIAL_ADDRESSES);
-let ordersStore = getStored<Order[]>(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
-let statsStore = getStored<AdminStats>(STORAGE_KEYS.STATS, INITIAL_ADMIN_STATS);
+let productsStore: Product[] =
+  storedProducts.length >= INITIAL_PRODUCTS.length ? storedProducts : clone(INITIAL_PRODUCTS);
+let reviewsStore: ProductReview[] = getStored<ProductReview[]>(
+  STORAGE_KEYS.REVIEWS,
+  clone(INITIAL_REVIEWS)
+);
+let addressesStore: Address[] = getStored<Address[]>(
+  STORAGE_KEYS.ADDRESSES,
+  clone(INITIAL_ADDRESSES)
+);
+let ordersStore: Order[] = getStored<Order[]>(STORAGE_KEYS.ORDERS, clone(INITIAL_ORDERS));
+let statsStore: AdminStats = getStored<AdminStats>(STORAGE_KEYS.STATS, clone(INITIAL_ADMIN_STATS));
 
 export const apiSlice = createApi({
   reducerPath: 'api',
@@ -221,13 +231,14 @@ export const apiSlice = createApi({
     updateProduct: builder.mutation<Product, Partial<Product> & { id: string }>({
       async queryFn({ id, ...updates }) {
         await sleep(350);
-        const index = productsStore.findIndex((p) => p.id === id);
-        if (index === -1) {
+        const product = productsStore.find((p) => p.id === id);
+        if (!product) {
           return { error: { status: 404, data: 'Product not found' } };
         }
-        productsStore[index] = { ...productsStore[index], ...updates };
+        const updatedProduct: Product = { ...product, ...updates };
+        productsStore = productsStore.map((p) => (p.id === id ? updatedProduct : p));
         setStored(STORAGE_KEYS.PRODUCTS, productsStore);
-        return { data: productsStore[index] };
+        return { data: updatedProduct };
       },
       invalidatesTags: (_result, _error, { id }) => [
         { type: 'Product', id },
@@ -276,16 +287,20 @@ export const apiSlice = createApi({
         reviewsStore = [review, ...reviewsStore];
         setStored(STORAGE_KEYS.REVIEWS, reviewsStore);
 
-        // recalculate product rating & count
+        // recalculate product rating & count immutably
         const productReviews = reviewsStore.filter((r) => r.productId === review.productId);
         const avg =
           productReviews.reduce((sum, r) => sum + r.rating, 0) / (productReviews.length || 1);
-        const productIndex = productsStore.findIndex((p) => p.id === review.productId);
-        if (productIndex !== -1) {
-          productsStore[productIndex].rating = Math.round(avg * 10) / 10;
-          productsStore[productIndex].reviewCount = productReviews.length;
-          setStored(STORAGE_KEYS.PRODUCTS, productsStore);
-        }
+        productsStore = productsStore.map((p) =>
+          p.id === review.productId
+            ? {
+                ...p,
+                rating: Math.round(avg * 10) / 10,
+                reviewCount: productReviews.length,
+              }
+            : p
+        );
+        setStored(STORAGE_KEYS.PRODUCTS, productsStore);
 
         return { data: review };
       },
@@ -420,14 +435,17 @@ export const apiSlice = createApi({
         };
         setStored(STORAGE_KEYS.STATS, statsStore);
 
-        // Deduct inventory stock
-        for (const item of order.items) {
-          const p = productsStore.find((prod) => prod.id === item.productId);
-          if (p) {
-            p.stockCount = Math.max(0, p.stockCount - item.quantity);
-            if (p.stockCount === 0) p.inStock = false;
-          }
-        }
+        // Deduct inventory stock immutably without mutating frozen objects
+        productsStore = productsStore.map((prod) => {
+          const item = order.items.find((it) => it.productId === prod.id);
+          if (!item) return prod;
+          const newStock = Math.max(0, prod.stockCount - item.quantity);
+          return {
+            ...prod,
+            stockCount: newStock,
+            inStock: newStock > 0,
+          };
+        });
         setStored(STORAGE_KEYS.PRODUCTS, productsStore);
 
         return { data: order };
@@ -442,14 +460,18 @@ export const apiSlice = createApi({
     updateOrderStatus: builder.mutation<Order, { orderId: string; status: Order['status'] }>({
       async queryFn({ orderId, status }) {
         await sleep(300);
-        const index = ordersStore.findIndex((o) => o.id === orderId);
-        if (index === -1) {
+        const order = ordersStore.find((o) => o.id === orderId);
+        if (!order) {
           return { error: { status: 404, data: 'Order not found' } };
         }
-        ordersStore[index].status = status;
-        ordersStore[index].updatedAt = new Date().toISOString();
+        const updatedOrder: Order = {
+          ...order,
+          status,
+          updatedAt: new Date().toISOString(),
+        };
+        ordersStore = ordersStore.map((o) => (o.id === orderId ? updatedOrder : o));
         setStored(STORAGE_KEYS.ORDERS, ordersStore);
-        return { data: ordersStore[index] };
+        return { data: updatedOrder };
       },
       invalidatesTags: (_result, _error, { orderId }) => [
         { type: 'Order', id: orderId },
@@ -554,27 +576,36 @@ export const apiSlice = createApi({
           return (!color || item.selectedColor === color) && (!size || item.selectedSize === size);
         });
 
+        let updatedItems: CartItem[];
         if (existingIndex > -1) {
-          items[existingIndex].quantity += quantity;
-          if (unitPrice) items[existingIndex].unitPrice = unitPrice;
+          const existingItem = items[existingIndex];
+          const updatedItem = {
+            ...existingItem,
+            quantity: existingItem.quantity + quantity,
+            unitPrice: unitPrice || existingItem.unitPrice,
+          };
+          updatedItems = items.map((it, idx) => (idx === existingIndex ? updatedItem : it));
         } else {
-          items.push({
-            product,
-            quantity,
-            selectedColor: color || (product.colors?.[0]?.name ?? undefined),
-            selectedSize: size,
-            selectedMaterial: material,
-            selectedVariants: selectedVariants || (color ? { Color: color } : undefined),
-            unitPrice: unitPrice || product.price,
-          });
+          updatedItems = [
+            ...items,
+            {
+              product,
+              quantity,
+              selectedColor: color || (product.colors?.[0]?.name ?? undefined),
+              selectedSize: size,
+              selectedMaterial: material,
+              selectedVariants: selectedVariants || (color ? { Color: color } : undefined),
+              unitPrice: unitPrice || product.price,
+            },
+          ];
         }
 
         const newCartState = {
           ...stored,
-          items,
+          items: updatedItems,
         };
         setStored(STORAGE_KEYS.CART, newCartState);
-        return { data: items };
+        return { data: updatedItems };
       },
       invalidatesTags: [{ type: 'Cart', id: 'ITEMS' }],
     }),

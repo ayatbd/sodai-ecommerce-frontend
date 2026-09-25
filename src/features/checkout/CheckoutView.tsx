@@ -16,6 +16,12 @@ import {
   useCreateOrderMutation,
   useProcessPaymentMutation,
 } from '../../services/api';
+import {
+  useCreatePaymentIntentMutation,
+  useCancelPaymentIntentMutation,
+  CreatePaymentIntentResponse,
+} from '../../services/paymentApi';
+import { StripePaymentElement } from './StripePaymentElement';
 import { calculateCart } from '../../utils/cartCalculations';
 import { Address, Order, ShippingMethod } from '../../types';
 import { useForm } from 'react-hook-form';
@@ -39,6 +45,7 @@ import {
   Clock,
   Sparkles,
   ShoppingBag,
+  RefreshCw,
 } from 'lucide-react';
 
 const shippingAddressSchema = z.object({
@@ -79,7 +86,41 @@ export function CheckoutView() {
   const [createOrder, { isLoading: isCreatingOrder }] = useCreateOrderMutation();
   const [processPayment, { isLoading: isProcessingPayment }] = useProcessPaymentMutation();
 
+  // Stripe Payment Flow integration
+  const [activePaymentIntent, setActivePaymentIntent] = useState<CreatePaymentIntentResponse | null>(null);
+  const [createPaymentIntent, { isLoading: isCreatingPaymentIntent }] = useCreatePaymentIntentMutation();
+  const [cancelPaymentIntentMutation] = useCancelPaymentIntentMutation();
+
   const calculations = calculateCart(cartItems, appliedCoupon, selectedShippingMethod);
+
+  // Auto-create Stripe PaymentIntent when entering payment step
+  React.useEffect(() => {
+    if (
+      step === 'payment' &&
+      calculations.total > 0 &&
+      !activePaymentIntent &&
+      !isCreatingPaymentIntent
+    ) {
+      const amountInCents = Math.round(calculations.total * 100);
+      createPaymentIntent({
+        amount: amountInCents,
+        currency: 'usd',
+        metadata: {
+          itemCount: cartItems.length,
+          customerName: shippingAddress?.fullName || 'Valued Client',
+          shippingCity: shippingAddress?.city || 'San Francisco',
+        },
+        receipt_email: shippingAddress?.phone || 'client@aura.design',
+      })
+        .unwrap()
+        .then((res) => {
+          setActivePaymentIntent(res);
+        })
+        .catch((err) => {
+          console.error('[Stripe] Failed to create PaymentIntent:', err);
+        });
+    }
+  }, [step, calculations.total, activePaymentIntent, isCreatingPaymentIntent, cartItems.length, shippingAddress, createPaymentIntent]);
 
   // Address Form
   const {
@@ -163,6 +204,78 @@ export function CheckoutView() {
     };
     dispatch(setShippingAddress(addressObj));
     dispatch(setCheckoutStep('payment'));
+  };
+
+  const handleStripeSuccess = async (paymentIntentId: string) => {
+    if (!shippingAddress) {
+      dispatch(
+        addToast({
+          title: 'Missing Address',
+          description: 'Please specify your shipping destination first.',
+          type: 'destructive',
+        })
+      );
+      dispatch(setCheckoutStep('shipping'));
+      return;
+    }
+
+    try {
+      const order = await createOrder({
+        userId: 'usr-default-1',
+        items: cartItems.map((item) => ({
+          productId: item.product.id,
+          productName: item.product.name,
+          productImage: item.product.images[0],
+          price: item.product.price,
+          quantity: item.quantity,
+          selectedColor: item.selectedColor,
+        })),
+        shippingAddress,
+        billingAddress: shippingAddress,
+        shippingMethod: selectedShippingMethod,
+        paymentMethod: {
+          type: 'card',
+          brand: 'Stripe Payment Element',
+          last4: '4242',
+        },
+        subtotal: calculations.subtotal,
+        discount: calculations.discount,
+        tax: calculations.tax,
+        shippingCost: calculations.shipping,
+        total: calculations.total,
+        couponApplied: appliedCoupon || undefined,
+      }).unwrap();
+
+      dispatch(clearCart());
+      dispatch(setLastOrder(order));
+      setActivePaymentIntent(null);
+      dispatch(
+        addToast({
+          title: 'Payment Successful',
+          description: `Order ${order.id} confirmed with Stripe (${paymentIntentId.slice(0, 16)}...).`,
+          type: 'success',
+        })
+      );
+    } catch {
+      dispatch(
+        addToast({
+          title: 'Order Finalization Failed',
+          description: 'Payment authorized but failed to record order.',
+          type: 'destructive',
+        })
+      );
+    }
+  };
+
+  const handleStripeCancel = () => {
+    setActivePaymentIntent(null);
+    dispatch(
+      addToast({
+        title: 'Payment Authorization Canceled',
+        description: 'The Stripe payment intent session was canceled.',
+        type: 'info',
+      })
+    );
   };
 
   const onPayWithStripe = async (cardData: StripeCardValues) => {
@@ -606,7 +719,31 @@ export function CheckoutView() {
 
           {step === 'payment' && (
             <div className="space-y-6">
-              {/* Express 1-click Pay Simulation */}
+              {/* Stripe Test Mode Banner */}
+              <div className="flex items-center justify-between p-4 rounded-xl border border-blue-200 bg-blue-50/70 dark:border-blue-900/60 dark:bg-blue-950/40">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-xs shadow-xs">
+                    STRIPE
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
+                      <span>Stripe Test Mode Flow</span>
+                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                        test_mode
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80">
+                      Using Stripe Payment Element &amp; Node.js Express backend with Mongoose model persistence.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-blue-700 dark:text-blue-300 font-medium">
+                  <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <span className="hidden sm:inline">256-bit SSL</span>
+                </div>
+              </div>
+
+              {/* Express 1-click Pay */}
               <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900 space-y-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
                   Express Checkout
@@ -614,30 +751,38 @@ export function CheckoutView() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() =>
-                      onPayWithStripe({
-                        cardholderName: 'Alex Rivera',
-                        cardNumber: '4242 4242 4242 4242',
-                        expiry: '12/28',
-                        cvc: '123',
-                        zipCode: '94107',
-                      })
-                    }
+                    onClick={() => {
+                      if (activePaymentIntent) {
+                        handleStripeSuccess(activePaymentIntent.paymentIntentId);
+                      } else {
+                        onPayWithStripe({
+                          cardholderName: 'Alex Rivera',
+                          cardNumber: '4242 4242 4242 4242',
+                          expiry: '12/28',
+                          cvc: '123',
+                          zipCode: '94107',
+                        });
+                      }
+                    }}
                     className="flex h-11 items-center justify-center rounded-lg bg-black text-white hover:bg-neutral-800 font-semibold text-sm transition-all"
                   >
                      Pay
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
-                      onPayWithStripe({
-                        cardholderName: 'Alex Rivera',
-                        cardNumber: '4242 4242 4242 4242',
-                        expiry: '12/28',
-                        cvc: '123',
-                        zipCode: '94107',
-                      })
-                    }
+                    onClick={() => {
+                      if (activePaymentIntent) {
+                        handleStripeSuccess(activePaymentIntent.paymentIntentId);
+                      } else {
+                        onPayWithStripe({
+                          cardholderName: 'Alex Rivera',
+                          cardNumber: '4242 4242 4242 4242',
+                          expiry: '12/28',
+                          cvc: '123',
+                          zipCode: '94107',
+                        });
+                      }
+                    }}
                     className="flex h-11 items-center justify-center rounded-lg border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50 font-semibold text-sm transition-all dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
                   >
                     G Pay
@@ -645,113 +790,60 @@ export function CheckoutView() {
                 </div>
               </div>
 
-              {/* Stripe Elements Styled Card Form */}
-              <form
-                onSubmit={handleCardSubmit(onPayWithStripe)}
-                className="rounded-xl border border-neutral-200 bg-white p-6 shadow-xs dark:border-neutral-800 dark:bg-neutral-900 space-y-5"
-              >
-                <div className="flex items-center justify-between border-b border-neutral-100 pb-3 dark:border-neutral-800">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-                    <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100">
-                      Credit or Debit Card
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-neutral-400">
-                    <Lock className="h-3 w-3 text-emerald-500" />
-                    <span>Stripe Secured</span>
-                  </div>
+              {/* Stripe Payment Element Section */}
+              {isCreatingPaymentIntent ? (
+                <div className="rounded-xl border border-neutral-200 bg-white p-8 dark:border-neutral-800 dark:bg-neutral-900 text-center space-y-3">
+                  <RefreshCw className="h-6 w-6 animate-spin text-neutral-500 mx-auto" />
+                  <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    Initializing Stripe Payment Intent...
+                  </p>
+                  <p className="text-xs text-neutral-400 font-mono">
+                    POST /api/v1/payments/create-payment-intent ({formatCurrency(calculations.total)})
+                  </p>
                 </div>
-
-                <Input
-                  label="Name on Card"
-                  placeholder="Alex Rivera"
-                  {...registerCard('cardholderName')}
-                  error={cardErrors.cardholderName?.message}
+              ) : activePaymentIntent ? (
+                <StripePaymentElement
+                  paymentIntentId={activePaymentIntent.paymentIntentId}
+                  clientSecret={activePaymentIntent.clientSecret}
+                  amount={calculations.total}
+                  isSimulated={activePaymentIntent.isSimulated}
+                  customerEmail={shippingAddress?.phone}
+                  onSuccess={handleStripeSuccess}
+                  onCancel={handleStripeCancel}
                 />
-
-                {/* Stripe Elements styled input box */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 tracking-wide">
-                    Card Information
-                  </label>
-                  <div className="rounded-lg border border-neutral-300 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-950 focus-within:border-neutral-900 focus-within:ring-2 focus-within:ring-neutral-900/10 space-y-3">
-                    <div className="relative flex items-center">
-                      <input
-                        type="text"
-                        placeholder="1234 5678 9012 3456"
-                        maxLength={19}
-                        value={cardNumberValue}
-                        onChange={handleCardNumberChange}
-                        className="w-full text-sm font-mono tracking-wider text-neutral-900 dark:text-white bg-transparent outline-none placeholder:text-neutral-400"
-                      />
-                      <div className="flex items-center gap-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider font-mono">
-                        {cardNumberValue.startsWith('4') ? (
-                          <span className="text-blue-600 font-bold">VISA</span>
-                        ) : cardNumberValue.startsWith('5') ? (
-                          <span className="text-orange-500 font-bold">MC</span>
-                        ) : cardNumberValue.startsWith('3') ? (
-                          <span className="text-emerald-500 font-bold">AMEX</span>
-                        ) : (
-                          <span>CARD</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-neutral-150 dark:border-neutral-800">
-                      <input
-                        type="text"
-                        placeholder="MM / YY"
-                        maxLength={5}
-                        {...registerCard('expiry')}
-                        className="w-full text-xs font-mono text-neutral-900 dark:text-white bg-transparent outline-none placeholder:text-neutral-400"
-                      />
-                      <input
-                        type="password"
-                        placeholder="CVC"
-                        maxLength={4}
-                        {...registerCard('cvc')}
-                        className="w-full text-xs font-mono text-neutral-900 dark:text-white bg-transparent outline-none placeholder:text-neutral-400 text-right"
-                      />
-                    </div>
-                  </div>
-                  {(cardErrors.cardNumber || cardErrors.expiry || cardErrors.cvc) && (
-                    <p className="text-xs text-red-600">
-                      {cardErrors.cardNumber?.message ||
-                        cardErrors.expiry?.message ||
-                        cardErrors.cvc?.message}
-                    </p>
-                  )}
-                </div>
-
-                <Input
-                  label="Billing Postal / ZIP Code"
-                  placeholder="94107"
-                  {...registerCard('zipCode')}
-                  error={cardErrors.zipCode?.message}
-                />
-
-                <div className="flex items-center justify-between pt-2">
-                  <button
-                    type="button"
-                    onClick={() => dispatch(setCheckoutStep('shipping'))}
-                    className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white flex items-center gap-1"
-                  >
-                    <ArrowLeft className="h-3 w-3" />
-                    <span>Edit Shipping Address</span>
-                  </button>
-
+              ) : (
+                <div className="rounded-xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900 text-center space-y-3">
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                    No active Stripe payment session.
+                  </p>
                   <Button
-                    type="submit"
-                    isLoading={isCreatingOrder || isProcessingPayment}
-                    size="lg"
-                    className="gap-2 px-8"
+                    onClick={() => {
+                      const amountInCents = Math.round(calculations.total * 100);
+                      createPaymentIntent({
+                        amount: amountInCents,
+                        currency: 'usd',
+                        metadata: { itemsCount: cartItems.length },
+                      })
+                        .unwrap()
+                        .then((res) => setActivePaymentIntent(res));
+                    }}
                   >
-                    <Lock className="h-3.5 w-3.5" />
-                    <span>Pay {formatCurrency(calculations.total)}</span>
+                    Create Payment Intent
                   </Button>
                 </div>
-              </form>
+              )}
+
+              {/* Return to Shipping Address */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => dispatch(setCheckoutStep('shipping'))}
+                  className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white flex items-center gap-1.5 transition-colors"
+                >
+                  <ArrowLeft className="h-3 w-3" />
+                  <span>Return to Shipping Details</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
