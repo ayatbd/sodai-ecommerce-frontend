@@ -1,7 +1,10 @@
 export interface User {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
+  phone?: string;
   avatar?: string;
   role: 'customer' | 'admin';
   createdAt: string;
@@ -124,6 +127,7 @@ export interface Address {
   postalCode: string;
   country: string;
   phone: string;
+  type?: 'shipping' | 'billing' | 'both';
   isDefaultShipping: boolean;
   isDefaultBilling: boolean;
 }
@@ -141,6 +145,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
+  orderNumber?: string;
   userId: string;
   items: OrderItem[];
   shippingAddress: Address;
@@ -151,6 +156,8 @@ export interface Order {
     brand?: string;
     last4?: string;
   };
+  paymentStatus?: 'paid' | 'pending' | 'failed' | 'refunded';
+  fulfillmentStatus?: 'unfulfilled' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'return_requested' | 'returned';
   subtotal: number;
   discount: number;
   tax: number;
@@ -159,6 +166,9 @@ export interface Order {
   status: OrderStatus;
   couponApplied?: Coupon;
   trackingNumber?: string;
+  carrier?: string;
+  estimatedDeliveryDate?: string;
+  invoiceUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

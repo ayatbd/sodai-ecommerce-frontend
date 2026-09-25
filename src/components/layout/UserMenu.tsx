@@ -126,12 +126,22 @@ export function UserMenu({ className = '' }: UserMenuProps) {
           {/* Account Links */}
           <DropdownMenuLabel>Account</DropdownMenuLabel>
 
-          <DropdownMenuItem onClick={() => navigateTo('orders')}>
+          <DropdownMenuItem onClick={() => navigate('account')}>
+            <User className="h-4 w-4 text-neutral-500" />
+            <span>Customer Dashboard</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => navigate('account-profile')}>
+            <ShieldCheck className="h-4 w-4 text-neutral-500" />
+            <span>Profile & Security</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => navigate('account-orders')}>
             <Package className="h-4 w-4 text-neutral-500" />
             <span>Orders & Invoices</span>
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={() => navigateTo('addresses')}>
+          <DropdownMenuItem onClick={() => navigate('account-addresses')}>
             <MapPin className="h-4 w-4 text-neutral-500" />
             <span>Saved Addresses</span>
           </DropdownMenuItem>

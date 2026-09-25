@@ -129,6 +129,24 @@ export function WishlistDrawer() {
             </div>
           )}
         </div>
+
+        {items.length > 0 && (
+          <div className="border-t border-neutral-200 p-4 dark:border-neutral-800">
+            <Button
+              variant="outline"
+              className="w-full text-xs"
+              onClick={() => {
+                dispatch(setWishlistOpen(false));
+                dispatch(setCurrentView('wishlist'));
+                if (typeof window !== 'undefined') {
+                  window.history.pushState({}, '', '/wishlist');
+                }
+              }}
+            >
+              Open Full Wishlist Page
+            </Button>
+          </div>
+        )}
       </div>
     </Sheet>
   );

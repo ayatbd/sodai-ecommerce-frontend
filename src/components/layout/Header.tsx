@@ -25,11 +25,13 @@ import { MobileNavigation } from './MobileNavigation';
 import { SearchDialog } from './SearchDialog';
 import { UserMenu } from './UserMenu';
 import { CartButton } from './CartButton';
+import { useNavigateView } from '../../hooks/useNavigateView';
 
 const ANNOUNCEMENT_STORAGE_KEY = 'aura_announcement_dismissed_v1';
 
 export function Header() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigateView();
   const theme = useAppSelector((state) => state.ui.theme);
   const wishlistItems = useAppSelector((state) => state.wishlist.items);
   const wishlistCount = wishlistItems.length;
@@ -64,8 +66,7 @@ export function Header() {
   };
 
   const handleWishlistClick = () => {
-    // If not authenticated, still allow viewing local wishlist or prompt auth
-    dispatch(setWishlistOpen(true));
+    navigate('wishlist');
   };
 
   return (

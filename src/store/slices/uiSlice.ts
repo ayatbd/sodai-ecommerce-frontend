@@ -13,7 +13,13 @@ export type AppView =
   | 'register'
   | 'forgot-password'
   | 'reset-password'
-  | 'verify-email';
+  | 'verify-email'
+  | 'account'
+  | 'account-profile'
+  | 'account-orders'
+  | 'account-order-detail'
+  | 'account-addresses'
+  | 'wishlist';
 
 interface UIState {
   theme: 'light' | 'dark';
@@ -28,6 +34,7 @@ interface UIState {
   activeQuickViewProduct: Product | null;
   currentView: AppView;
   selectedProductId: string | null;
+  activeOrderId: string | null;
   toasts: ToastMessage[];
 }
 
@@ -46,11 +53,19 @@ const getInitialView = (): AppView => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       const search = window.location.search;
+      if (path === '/account') return 'account';
+      if (path === '/account/profile') return 'account-profile';
+      if (path === '/account/orders') return 'account-orders';
+      if (path.startsWith('/account/orders/')) return 'account-order-detail';
+      if (path === '/account/addresses') return 'account-addresses';
+      if (path === '/orders') return 'account-orders';
+      if (path === '/addresses') return 'account-addresses';
       if (path === '/login') return 'login';
       if (path === '/register') return 'register';
       if (path === '/forgot-password') return 'forgot-password';
       if (path === '/reset-password') return 'reset-password';
       if (path === '/verify-email') return 'verify-email';
+      if (path === '/wishlist') return 'wishlist';
       if (
         path.startsWith('/shop') ||
         path.startsWith('/search') ||
@@ -66,6 +81,20 @@ const getInitialView = (): AppView => {
   return 'home';
 };
 
+const getInitialOrderId = (): string | null => {
+  try {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.startsWith('/account/orders/')) {
+        return path.replace('/account/orders/', '').split('/')[0] || null;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
 const initialState: UIState = {
   theme: getInitialTheme(),
   isCartOpen: false,
@@ -79,6 +108,7 @@ const initialState: UIState = {
   activeQuickViewProduct: null,
   currentView: getInitialView(),
   selectedProductId: null,
+  activeOrderId: getInitialOrderId(),
   toasts: [],
 };
 
@@ -157,6 +187,14 @@ export const uiSlice = createSlice({
       state.currentView = 'product-detail';
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
+    setActiveOrderId: (state, action: PayloadAction<string | null>) => {
+      state.activeOrderId = action.payload;
+    },
+    viewOrderDetail: (state, action: PayloadAction<string>) => {
+      state.activeOrderId = action.payload;
+      state.currentView = 'account-order-detail';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
     addToast: (state, action: PayloadAction<Omit<ToastMessage, 'id'>>) => {
       const toast: ToastMessage = {
         ...action.payload,
@@ -184,6 +222,8 @@ export const {
   setActiveQuickViewProduct,
   setCurrentView,
   viewProductDetail,
+  setActiveOrderId,
+  viewOrderDetail,
   addToast,
   removeToast,
 } = uiSlice.actions;

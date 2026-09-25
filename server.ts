@@ -5,6 +5,9 @@ import { createServer as createViteServer } from 'vite';
 import { connectDB } from './server/db';
 import { paymentsRouter } from './server/routes/payments';
 import { authRouter } from './server/routes/auth';
+import { accountRouter } from './server/routes/account';
+import { wishlistRouter } from './server/routes/wishlist';
+import { couponsRouter } from './server/routes/coupons';
 
 dotenv.config();
 
@@ -33,6 +36,15 @@ async function startServer() {
 
   // Mount Auth API Routes
   app.use('/api/v1/auth', authRouter);
+
+  // Mount Account API Routes
+  app.use('/api/v1/account', accountRouter);
+
+  // Mount Wishlist API Routes
+  app.use('/api/v1/wishlist', wishlistRouter);
+
+  // Mount Coupons API Routes
+  app.use('/api/v1/coupons', couponsRouter);
 
   // Vite middleware for development vs static build for production
   if (process.env.NODE_ENV !== 'production') {

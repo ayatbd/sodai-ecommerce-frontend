@@ -15,19 +15,27 @@ import {
 export const INITIAL_USER: User = {
   id: 'usr-default-1',
   name: 'Alex Rivera',
+  firstName: 'Alex',
+  lastName: 'Rivera',
   email: 'alex.rivera@aura-studio.com',
+  phone: '+1 (415) 882-9011',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   role: 'customer',
   createdAt: '2025-01-15T10:00:00Z',
+  isEmailVerified: true,
 };
 
 export const ADMIN_USER: User = {
   id: 'usr-admin-1',
-  name: 'Elena Vance (Admin)',
+  name: 'Elena Vance',
+  firstName: 'Elena',
+  lastName: 'Vance',
   email: 'admin@aura-studio.com',
+  phone: '+1 (415) 555-0199',
   avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
   role: 'admin',
   createdAt: '2024-11-01T08:00:00Z',
+  isEmailVerified: true,
 };
 
 export const CATEGORIES: ProductCategory[] = [
@@ -915,6 +923,7 @@ export const INITIAL_ADDRESSES: Address[] = [
     postalCode: '94107',
     country: 'United States',
     phone: '+1 (415) 882-9011',
+    type: 'both',
     isDefaultShipping: true,
     isDefaultBilling: true,
   },
@@ -929,6 +938,22 @@ export const INITIAL_ADDRESSES: Address[] = [
     postalCode: '94103',
     country: 'United States',
     phone: '+1 (415) 555-0199',
+    type: 'shipping',
+    isDefaultShipping: false,
+    isDefaultBilling: false,
+  },
+  {
+    id: 'addr-3',
+    userId: 'usr-default-1',
+    fullName: 'Alex Rivera (Accounting)',
+    street: '55 2nd Street',
+    apartment: 'Suite 1200',
+    city: 'San Francisco',
+    state: 'CA',
+    postalCode: '94105',
+    country: 'United States',
+    phone: '+1 (415) 882-9011',
+    type: 'billing',
     isDefaultShipping: false,
     isDefaultBilling: false,
   },
@@ -937,6 +962,7 @@ export const INITIAL_ADDRESSES: Address[] = [
 export const INITIAL_ORDERS: Order[] = [
   {
     id: 'ORD-84920',
+    orderNumber: 'ORD-84920',
     userId: 'usr-default-1',
     items: [
       {
@@ -964,6 +990,8 @@ export const INITIAL_ORDERS: Order[] = [
       brand: 'Visa',
       last4: '4242',
     },
+    paymentStatus: 'paid',
+    fulfillmentStatus: 'delivered',
     subtotal: 427.00,
     discount: 42.70,
     tax: 30.74,
@@ -976,11 +1004,14 @@ export const INITIAL_ORDERS: Order[] = [
       description: '10% Welcome discount',
     },
     trackingNumber: 'AUR-992817420-US',
+    carrier: 'FedEx Express Carbon-Neutral',
+    estimatedDeliveryDate: '2025-08-14T11:00:00Z',
     createdAt: '2025-08-10T16:20:00Z',
     updatedAt: '2025-08-14T11:00:00Z',
   },
   {
     id: 'ORD-91204',
+    orderNumber: 'ORD-91204',
     userId: 'usr-default-1',
     items: [
       {
@@ -998,6 +1029,8 @@ export const INITIAL_ORDERS: Order[] = [
     paymentMethod: {
       type: 'apple_pay',
     },
+    paymentStatus: 'paid',
+    fulfillmentStatus: 'processing',
     subtotal: 185.00,
     discount: 0,
     tax: 14.80,
@@ -1005,8 +1038,59 @@ export const INITIAL_ORDERS: Order[] = [
     total: 214.80,
     status: 'processing',
     trackingNumber: 'AUR-449102830-US',
+    carrier: 'DHL Express Worldwide',
+    estimatedDeliveryDate: '2025-09-22T17:00:00Z',
     createdAt: '2025-09-18T10:30:00Z',
     updatedAt: '2025-09-19T08:12:00Z',
+  },
+  {
+    id: 'ORD-94511',
+    orderNumber: 'ORD-94511',
+    userId: 'usr-default-1',
+    items: [
+      {
+        productId: 'prod-4',
+        productName: 'Vanguard Technical Roll-Top Backpack',
+        productImage: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=900&auto=format&fit=crop&q=80',
+        price: 220.00,
+        quantity: 1,
+        selectedColor: 'Matte Stealth Black',
+      },
+      {
+        productId: 'prod-15',
+        productName: 'Vanguard Modular Tech Pouch',
+        productImage: 'https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?w=900&auto=format&fit=crop&q=80',
+        price: 55.00,
+        quantity: 2,
+        selectedColor: 'Graphite',
+      },
+    ],
+    shippingAddress: INITIAL_ADDRESSES[1],
+    billingAddress: INITIAL_ADDRESSES[0],
+    shippingMethod: SHIPPING_METHODS[2],
+    paymentMethod: {
+      type: 'card',
+      brand: 'Mastercard',
+      last4: '8821',
+    },
+    paymentStatus: 'paid',
+    fulfillmentStatus: 'shipped',
+    subtotal: 330.00,
+    discount: 25.00,
+    tax: 24.40,
+    shippingCost: 28.00,
+    total: 357.40,
+    status: 'shipped',
+    couponApplied: {
+      code: 'STUDIO25',
+      discountAmount: 25,
+      description: 'Studio Member Voucher',
+    },
+    trackingNumber: 'AUR-881290341-US',
+    carrier: 'UPS Next Day Air',
+    estimatedDeliveryDate: '2025-09-26T12:00:00Z',
+    createdAt: '2025-09-24T09:15:00Z',
+    updatedAt: '2025-09-24T14:40:00Z',
   },
 ];
 

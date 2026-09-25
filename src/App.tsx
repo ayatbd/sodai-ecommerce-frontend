@@ -17,6 +17,13 @@ import { RegisterPage } from './features/auth/RegisterPage';
 import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { VerifyEmailPage } from './features/auth/VerifyEmailPage';
+import { AccountDashboard } from './features/account/AccountDashboard';
+import { ProfilePage } from './features/account/ProfilePage';
+import { OrdersPage } from './features/account/OrdersPage';
+import { OrderDetailPage } from './features/account/OrderDetailPage';
+import { AddressesPage } from './features/account/AddressesPage';
+import { WishlistPage } from './features/wishlist/WishlistPage';
+import { setActiveOrderId } from './store/slices/uiSlice';
 import { CartDrawer } from './features/cart/CartDrawer';
 import { WishlistDrawer } from './features/wishlist/WishlistDrawer';
 import { ProductQuickViewModal } from './features/products/ProductQuickViewModal';
@@ -52,10 +59,24 @@ function AppContent() {
         dispatch(setCurrentView('checkout'));
       } else if (path === '/shop') {
         dispatch(setCurrentView('shop'));
+      } else if (path === '/account') {
+        dispatch(setCurrentView('account'));
+      } else if (path === '/account/profile') {
+        dispatch(setCurrentView('account-profile'));
+      } else if (path === '/account/orders') {
+        dispatch(setCurrentView('account-orders'));
+      } else if (path.startsWith('/account/orders/')) {
+        const orderId = path.replace('/account/orders/', '').split('/')[0];
+        if (orderId) {
+          dispatch(setActiveOrderId(orderId));
+        }
+        dispatch(setCurrentView('account-order-detail'));
+      } else if (path === '/account/addresses') {
+        dispatch(setCurrentView('account-addresses'));
       } else if (path === '/orders') {
-        dispatch(setCurrentView('orders'));
+        dispatch(setCurrentView('account-orders'));
       } else if (path === '/addresses') {
-        dispatch(setCurrentView('addresses'));
+        dispatch(setCurrentView('account-addresses'));
       } else if (path === '/admin') {
         dispatch(setCurrentView('admin'));
       } else if (path === '/login') {
@@ -68,6 +89,8 @@ function AppContent() {
         dispatch(setCurrentView('reset-password'));
       } else if (path === '/verify-email') {
         dispatch(setCurrentView('verify-email'));
+      } else if (path === '/wishlist') {
+        dispatch(setCurrentView('wishlist'));
       }
     };
 
@@ -87,8 +110,12 @@ function AppContent() {
         {currentView === 'shop' && <ShopView />}
         {currentView === 'product-detail' && <ProductDetailView />}
         {currentView === 'checkout' && <CheckoutView />}
-        {currentView === 'orders' && <OrderHistory />}
-        {currentView === 'addresses' && <AddressBook />}
+        {currentView === 'wishlist' && <WishlistPage />}
+        {currentView === 'account' && <AccountDashboard />}
+        {currentView === 'account-profile' && <ProfilePage />}
+        {(currentView === 'account-orders' || currentView === 'orders') && <OrdersPage />}
+        {currentView === 'account-order-detail' && <OrderDetailPage />}
+        {(currentView === 'account-addresses' || currentView === 'addresses') && <AddressesPage />}
         {currentView === 'admin' && <AdminDashboard />}
         {currentView === 'login' && <LoginPage />}
         {currentView === 'register' && <RegisterPage />}

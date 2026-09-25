@@ -34,6 +34,8 @@ const STORAGE_KEYS = {
   ORDERS: 'aura_orders_v1',
   STATS: 'aura_admin_stats_v1',
   CART: 'aura_cart_state_v1',
+  USER: 'aura_user_profile_v1',
+  WISHLIST: 'aura_wishlist_state_v1',
 };
 
 function getStored<T>(key: string, fallback: T): T {
@@ -70,11 +72,16 @@ let addressesStore: Address[] = getStored<Address[]>(
 );
 let ordersStore: Order[] = getStored<Order[]>(STORAGE_KEYS.ORDERS, clone(INITIAL_ORDERS));
 let statsStore: AdminStats = getStored<AdminStats>(STORAGE_KEYS.STATS, clone(INITIAL_ADMIN_STATS));
+let userStore: User = getStored<User>(STORAGE_KEYS.USER, clone(INITIAL_USER));
+let wishlistStore: Product[] = getStored<{ items: Product[] }>(
+  STORAGE_KEYS.WISHLIST,
+  { items: [clone(INITIAL_PRODUCTS[0]), clone(INITIAL_PRODUCTS[3])] }
+).items || [];
 
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fakeBaseQuery(),
-  tagTypes: ['Product', 'Category', 'Review', 'Coupon', 'Address', 'Order', 'User', 'AdminData', 'Cart'],
+  tagTypes: ['Product', 'Category', 'Review', 'Coupon', 'Address', 'Order', 'User', 'AdminData', 'Cart', 'Wishlist'],
   endpoints: (builder) => ({
     // 1. PRODUCTS
     getProducts: builder.query<Product[], ProductFilters | void>({
@@ -366,6 +373,59 @@ export const apiSlice = createApi({
       invalidatesTags: [{ type: 'Address', id: 'LIST' }],
     }),
 
+    updateAddress: builder.mutation<Address, Partial<Address> & { id: string }>({
+      async queryFn({ id, ...updates }) {
+        await sleep(300);
+        const existing = addressesStore.find((a) => a.id === id);
+        if (!existing) {
+          return { error: { status: 404, data: 'Address not found' } };
+        }
+
+        if (updates.isDefaultShipping) {
+          addressesStore = addressesStore.map((a) => ({ ...a, isDefaultShipping: false }));
+        }
+        if (updates.isDefaultBilling) {
+          addressesStore = addressesStore.map((a) => ({ ...a, isDefaultBilling: false }));
+        }
+
+        const updated: Address = { ...existing, ...updates };
+        addressesStore = addressesStore.map((a) => (a.id === id ? updated : a));
+        setStored(STORAGE_KEYS.ADDRESSES, addressesStore);
+        return { data: updated };
+      },
+      invalidatesTags: [{ type: 'Address', id: 'LIST' }],
+    }),
+
+    setDefaultAddress: builder.mutation<
+      { success: boolean; address: Address },
+      { id: string; type: 'shipping' | 'billing' }
+    >({
+      async queryFn({ id, type }) {
+        await sleep(200);
+        const existing = addressesStore.find((a) => a.id === id);
+        if (!existing) {
+          return { error: { status: 404, data: 'Address not found' } };
+        }
+
+        if (type === 'shipping') {
+          addressesStore = addressesStore.map((a) => ({
+            ...a,
+            isDefaultShipping: a.id === id,
+          }));
+        } else {
+          addressesStore = addressesStore.map((a) => ({
+            ...a,
+            isDefaultBilling: a.id === id,
+          }));
+        }
+
+        setStored(STORAGE_KEYS.ADDRESSES, addressesStore);
+        const updated = addressesStore.find((a) => a.id === id)!;
+        return { data: { success: true, address: updated } };
+      },
+      invalidatesTags: [{ type: 'Address', id: 'LIST' }],
+    }),
+
     deleteAddress: builder.mutation<{ success: boolean; id: string }, string>({
       async queryFn(id) {
         await sleep(250);
@@ -480,6 +540,56 @@ export const apiSlice = createApi({
       ],
     }),
 
+    cancelOrder: builder.mutation<Order, { orderId: string; reason?: string }>({
+      async queryFn({ orderId, reason }) {
+        await sleep(350);
+        const order = ordersStore.find((o) => o.id === orderId);
+        if (!order) {
+          return { error: { status: 404, data: 'Order not found' } };
+        }
+        if (order.status !== 'processing' && order.status !== 'pending') {
+          return { error: { status: 400, data: 'Order cannot be cancelled in its current state' } };
+        }
+        const updatedOrder: Order = {
+          ...order,
+          status: 'cancelled',
+          fulfillmentStatus: 'cancelled',
+          paymentStatus: 'refunded',
+          updatedAt: new Date().toISOString(),
+        };
+        ordersStore = ordersStore.map((o) => (o.id === orderId ? updatedOrder : o));
+        setStored(STORAGE_KEYS.ORDERS, ordersStore);
+        return { data: updatedOrder };
+      },
+      invalidatesTags: (_result, _error, { orderId }) => [
+        { type: 'Order', id: orderId },
+        { type: 'Order', id: 'LIST' },
+        { type: 'AdminData', id: 'STATS' },
+      ],
+    }),
+
+    returnOrder: builder.mutation<Order, { orderId: string; reason: string; notes?: string }>({
+      async queryFn({ orderId }) {
+        await sleep(400);
+        const order = ordersStore.find((o) => o.id === orderId);
+        if (!order) {
+          return { error: { status: 404, data: 'Order not found' } };
+        }
+        const updatedOrder: Order = {
+          ...order,
+          fulfillmentStatus: 'return_requested',
+          updatedAt: new Date().toISOString(),
+        };
+        ordersStore = ordersStore.map((o) => (o.id === orderId ? updatedOrder : o));
+        setStored(STORAGE_KEYS.ORDERS, ordersStore);
+        return { data: updatedOrder };
+      },
+      invalidatesTags: (_result, _error, { orderId }) => [
+        { type: 'Order', id: orderId },
+        { type: 'Order', id: 'LIST' },
+      ],
+    }),
+
     // 8. PAYMENTS (Stripe Payment Intent Simulation)
     processPayment: builder.mutation<
       { success: boolean; transactionId: string; message: string },
@@ -501,7 +611,7 @@ export const apiSlice = createApi({
     getCurrentUser: builder.query<User, void>({
       async queryFn() {
         await sleep(150);
-        return { data: INITIAL_USER };
+        return { data: userStore };
       },
       providesTags: [{ type: 'User', id: 'CURRENT' }],
     }),
@@ -509,8 +619,31 @@ export const apiSlice = createApi({
     updateUserProfile: builder.mutation<User, Partial<User>>({
       async queryFn(updates) {
         await sleep(350);
-        const updatedUser = { ...INITIAL_USER, ...updates };
-        return { data: updatedUser };
+        userStore = {
+          ...userStore,
+          ...updates,
+          name: updates.firstName && updates.lastName
+            ? `${updates.firstName} ${updates.lastName}`.trim()
+            : updates.name || userStore.name,
+        };
+        setStored(STORAGE_KEYS.USER, userStore);
+        return { data: userStore };
+      },
+      invalidatesTags: [{ type: 'User', id: 'CURRENT' }],
+    }),
+
+    changeUserPassword: builder.mutation<
+      { success: boolean; message: string },
+      { currentPassword?: string; newPassword: string }
+    >({
+      async queryFn() {
+        await sleep(400);
+        return {
+          data: {
+            success: true,
+            message: 'Your password has been changed securely.',
+          },
+        };
       },
       invalidatesTags: [{ type: 'User', id: 'CURRENT' }],
     }),
@@ -627,6 +760,102 @@ export const apiSlice = createApi({
       },
       providesTags: (_res, _err, arg) => [{ type: 'Order', id: arg.productId }],
     }),
+
+    // 13. WISHLIST
+    getWishlist: builder.query<Product[], void>({
+      async queryFn() {
+        await sleep(200);
+        try {
+          const res = await fetch('/api/v1/wishlist');
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.items) {
+              wishlistStore = data.items;
+              setStored(STORAGE_KEYS.WISHLIST, { items: wishlistStore });
+              return { data: wishlistStore };
+            }
+          }
+        } catch {
+          // fallback to memory/local storage
+        }
+        const stored = getStored<{ items: Product[] }>(STORAGE_KEYS.WISHLIST, { items: [] });
+        wishlistStore = stored.items || [];
+        return { data: wishlistStore };
+      },
+      providesTags: [{ type: 'Wishlist', id: 'LIST' }],
+    }),
+
+    addToWishlistMutation: builder.mutation<Product[], Product | string>({
+      async queryFn(productOrId) {
+        await sleep(200);
+        const prodId = typeof productOrId === 'string' ? productOrId : productOrId.id;
+        const product =
+          typeof productOrId === 'string'
+            ? productsStore.find((p) => p.id === prodId)
+            : productOrId;
+
+        try {
+          await fetch(`/api/v1/wishlist/${prodId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(product || {}),
+          });
+        } catch {
+          // fallback
+        }
+
+        if (product && !wishlistStore.some((p) => p.id === prodId)) {
+          wishlistStore = [product, ...wishlistStore];
+          setStored(STORAGE_KEYS.WISHLIST, { items: wishlistStore });
+        }
+
+        return { data: wishlistStore };
+      },
+      invalidatesTags: [{ type: 'Wishlist', id: 'LIST' }],
+    }),
+
+    removeFromWishlistMutation: builder.mutation<Product[], string>({
+      async queryFn(productId) {
+        await sleep(150);
+        try {
+          await fetch(`/api/v1/wishlist/${productId}`, {
+            method: 'DELETE',
+          });
+        } catch {
+          // fallback
+        }
+
+        wishlistStore = wishlistStore.filter((p) => p.id !== productId);
+        setStored(STORAGE_KEYS.WISHLIST, { items: wishlistStore });
+
+        return { data: wishlistStore };
+      },
+      invalidatesTags: [{ type: 'Wishlist', id: 'LIST' }],
+    }),
+
+    clearWishlistMutation: builder.mutation<Product[], void>({
+      async queryFn() {
+        await sleep(150);
+        try {
+          await fetch('/api/v1/wishlist', { method: 'DELETE' });
+        } catch {
+          // fallback
+        }
+        wishlistStore = [];
+        setStored(STORAGE_KEYS.WISHLIST, { items: [] });
+        return { data: [] };
+      },
+      invalidatesTags: [{ type: 'Wishlist', id: 'LIST' }],
+    }),
+
+    // 14. COUPONS
+    getCoupons: builder.query<Coupon[], void>({
+      async queryFn() {
+        await sleep(150);
+        return { data: COUPONS };
+      },
+      providesTags: [{ type: 'Coupon', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -644,20 +873,30 @@ export const {
   useGetReviewsQuery,
   useAddReviewMutation,
   useValidateCouponMutation,
+  useGetCouponsQuery,
   useGetAddressesQuery,
   useAddAddressMutation,
+  useUpdateAddressMutation,
+  useSetDefaultAddressMutation,
   useDeleteAddressMutation,
   useGetShippingMethodsQuery,
   useGetOrdersQuery,
   useGetOrderByIdQuery,
   useCreateOrderMutation,
   useUpdateOrderStatusMutation,
+  useCancelOrderMutation,
+  useReturnOrderMutation,
   useProcessPaymentMutation,
   useGetCurrentUserQuery,
   useUpdateUserProfileMutation,
+  useChangeUserPasswordMutation,
   useGetAdminStatsQuery,
   useSubscribeNewsletterMutation,
   useGetCartQuery,
   useAddToCartMutationMutation,
   useCheckCustomerEligibilityQuery,
+  useGetWishlistQuery,
+  useAddToWishlistMutationMutation,
+  useRemoveFromWishlistMutationMutation,
+  useClearWishlistMutationMutation,
 } = apiSlice;
