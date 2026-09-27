@@ -11,6 +11,22 @@ export interface User {
   isEmailVerified?: boolean;
 }
 
+export interface AdminCustomer {
+  id: string;
+  name: string;
+  email: string;
+  orderCount: number;
+  totalSpent: number;
+  active: boolean;
+}
+
+export interface AdminSettings {
+  storeName: string;
+  supportEmail: string;
+  lowStockThreshold: number;
+  currency: string;
+}
+
 export interface AuthResponse {
   user: User;
   token: string;
@@ -23,6 +39,7 @@ export interface ProductCategory {
   description: string;
   imageUrl: string;
   productCount: number;
+  sortOrder?: number;
 }
 
 export interface ProductReview {
@@ -78,6 +95,7 @@ export interface Product {
   reviewCount: number;
   isFeatured?: boolean;
   isNew?: boolean;
+  published?: boolean;
   tags: string[];
   features: string[];
   dimensions?: string;
@@ -198,6 +216,7 @@ export interface ToastMessage {
 }
 
 export interface ProductFilters {
+  admin?: boolean;
   category?: string;
   brand?: string;
   minPrice?: number;

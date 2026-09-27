@@ -1,30 +1,32 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
+import { sleep } from '../lib/utils';
 import {
+  Address,
+  AdminCustomer,
+  AdminSettings,
+  AdminStats,
+  CartItem,
+  Coupon,
+  Order,
   Product,
   ProductCategory,
-  ProductReview,
-  Coupon,
-  Address,
-  Order,
-  AdminStats,
-  User,
   ProductFilters,
+  ProductReview,
   ShippingMethod,
-  CartItem,
+  User,
 } from '../types';
 import {
-  INITIAL_PRODUCTS,
+  BRANDS,
   CATEGORIES,
-  INITIAL_REVIEWS,
   COUPONS,
   INITIAL_ADDRESSES,
-  INITIAL_ORDERS,
   INITIAL_ADMIN_STATS,
-  SHIPPING_METHODS,
+  INITIAL_ORDERS,
+  INITIAL_PRODUCTS,
+  INITIAL_REVIEWS,
   INITIAL_USER,
-  BRANDS,
+  SHIPPING_METHODS,
 } from './mockData';
-import { sleep } from '../lib/utils';
 
 // Local storage persistent caches
 const STORAGE_KEYS = {
@@ -77,6 +79,15 @@ let wishlistStore: Product[] = getStored<{ items: Product[] }>(
   STORAGE_KEYS.WISHLIST,
   { items: [clone(INITIAL_PRODUCTS[0]), clone(INITIAL_PRODUCTS[3])] }
 ).items || [];
+let categoriesStore = getStored<ProductCategory[]>('aura_categories_v1', CATEGORIES);
+let couponsStore = getStored<Coupon[]>('aura_coupons_v1', COUPONS);
+let customerStatusStore = getStored<Record<string, boolean>>('aura_customer_status_v1', {});
+let settingsStore = getStored<AdminSettings>('aura_admin_settings_v1', {
+  storeName: 'AURA',
+  supportEmail: 'support@aura-studio.com',
+  lowStockThreshold: 5,
+  currency: 'USD',
+});
 
 export const apiSlice = createApi({
   reducerPath: 'api',
@@ -87,7 +98,7 @@ export const apiSlice = createApi({
     getProducts: builder.query<Product[], ProductFilters | void>({
       async queryFn(filters) {
         await sleep(250);
-        let result = [...productsStore];
+        let result = productsStore.filter((product) => filters?.admin || product.published !== false);
 
         if (filters) {
           if (filters.category && filters.category !== 'all') {
@@ -158,9 +169,9 @@ export const apiSlice = createApi({
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ id }) => ({ type: 'Product' as const, id })),
-              { type: 'Product', id: 'LIST' },
-            ]
+            ...result.map(({ id }) => ({ type: 'Product' as const, id })),
+            { type: 'Product', id: 'LIST' },
+          ]
           : [{ type: 'Product', id: 'LIST' }],
     }),
 
@@ -268,9 +279,40 @@ export const apiSlice = createApi({
     getCategories: builder.query<ProductCategory[], void>({
       async queryFn() {
         await sleep(200);
-        return { data: CATEGORIES };
+        return { data: categoriesStore };
       },
       providesTags: [{ type: 'Category', id: 'LIST' }],
+    }),
+
+    createCategory: builder.mutation<ProductCategory, Omit<ProductCategory, 'id' | 'productCount'>>({
+      async queryFn(input) {
+        await sleep(250);
+        const category = { ...input, id: `cat-${Date.now()}`, productCount: 0 };
+        categoriesStore = [...categoriesStore, category];
+        setStored('aura_categories_v1', categoriesStore);
+        return { data: category };
+      },
+      invalidatesTags: [{ type: 'Category', id: 'LIST' }],
+    }),
+
+    updateCategory: builder.mutation<ProductCategory, ProductCategory>({
+      async queryFn(category) {
+        await sleep(250);
+        categoriesStore = categoriesStore.map((item) => item.id === category.id ? category : item);
+        setStored('aura_categories_v1', categoriesStore);
+        return { data: category };
+      },
+      invalidatesTags: [{ type: 'Category', id: 'LIST' }],
+    }),
+
+    deleteCategory: builder.mutation<{ success: boolean }, string>({
+      async queryFn(id) {
+        await sleep(200);
+        categoriesStore = categoriesStore.filter((category) => category.id !== id);
+        setStored('aura_categories_v1', categoriesStore);
+        return { data: { success: true } };
+      },
+      invalidatesTags: [{ type: 'Category', id: 'LIST' }],
     }),
 
     // 3. REVIEWS
@@ -281,6 +323,25 @@ export const apiSlice = createApi({
         return { data: revs };
       },
       providesTags: (_result, _error, productId) => [{ type: 'Review', id: productId }],
+    }),
+
+    getAdminReviews: builder.query<ProductReview[], void>({
+      async queryFn() {
+        await sleep(200);
+        return { data: reviewsStore };
+      },
+      providesTags: [{ type: 'Review', id: 'ADMIN_LIST' }],
+    }),
+
+    setReviewApproval: builder.mutation<ProductReview, { reviewId: string; isApproved: boolean }>({
+      async queryFn({ reviewId, isApproved }) {
+        const index = reviewsStore.findIndex((review) => review.id === reviewId);
+        if (index < 0) return { error: { status: 404, data: 'Review not found' } };
+        reviewsStore[index] = { ...reviewsStore[index], isApproved };
+        setStored(STORAGE_KEYS.REVIEWS, reviewsStore);
+        return { data: reviewsStore[index] };
+      },
+      invalidatesTags: [{ type: 'Review', id: 'ADMIN_LIST' }, { type: 'Review', id: 'LIST' }],
     }),
 
     addReview: builder.mutation<ProductReview, Omit<ProductReview, 'id' | 'createdAt'>>({
@@ -301,10 +362,10 @@ export const apiSlice = createApi({
         productsStore = productsStore.map((p) =>
           p.id === review.productId
             ? {
-                ...p,
-                rating: Math.round(avg * 10) / 10,
-                reviewCount: productReviews.length,
-              }
+              ...p,
+              rating: Math.round(avg * 10) / 10,
+              reviewCount: productReviews.length,
+            }
             : p
         );
         setStored(STORAGE_KEYS.PRODUCTS, productsStore);
@@ -319,11 +380,39 @@ export const apiSlice = createApi({
     }),
 
     // 4. COUPONS
+    getAdminCoupons: builder.query<Coupon[], void>({
+      async queryFn() {
+        await sleep(150);
+        return { data: couponsStore };
+      },
+      providesTags: [{ type: 'Coupon', id: 'LIST' }],
+    }),
+
+    saveAdminCoupon: builder.mutation<Coupon, Coupon>({
+      async queryFn(coupon) {
+        await sleep(200);
+        couponsStore = [coupon, ...couponsStore.filter((item) => item.code !== coupon.code)];
+        setStored('aura_coupons_v1', couponsStore);
+        return { data: coupon };
+      },
+      invalidatesTags: [{ type: 'Coupon', id: 'LIST' }],
+    }),
+
+    deleteAdminCoupon: builder.mutation<{ success: boolean }, string>({
+      async queryFn(code) {
+        await sleep(200);
+        couponsStore = couponsStore.filter((coupon) => coupon.code !== code);
+        setStored('aura_coupons_v1', couponsStore);
+        return { data: { success: true } };
+      },
+      invalidatesTags: [{ type: 'Coupon', id: 'LIST' }],
+    }),
+
     validateCoupon: builder.mutation<Coupon, { code: string; subtotal: number }>({
       async queryFn({ code, subtotal }) {
         await sleep(300);
         const normalized = code.trim().toUpperCase();
-        const found = COUPONS.find((c) => c.code.toUpperCase() === normalized);
+        const found = couponsStore.find((c) => c.code.toUpperCase() === normalized);
 
         if (!found) {
           return { error: { status: 400, data: 'Invalid coupon code' } };
@@ -452,9 +541,9 @@ export const apiSlice = createApi({
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ id }) => ({ type: 'Order' as const, id })),
-              { type: 'Order', id: 'LIST' },
-            ]
+            ...result.map(({ id }) => ({ type: 'Order' as const, id })),
+            { type: 'Order', id: 'LIST' },
+          ]
           : [{ type: 'Order', id: 'LIST' }],
     }),
 
@@ -587,6 +676,21 @@ export const apiSlice = createApi({
       invalidatesTags: (_result, _error, { orderId }) => [
         { type: 'Order', id: orderId },
         { type: 'Order', id: 'LIST' },
+        { type: 'AdminData', id: 'STATS' },
+      ],
+    }),
+
+    updateOrderTracking: builder.mutation<Order, { orderId: string; trackingNumber: string }>({
+      async queryFn({ orderId, trackingNumber }) {
+        const index = ordersStore.findIndex((order) => order.id === orderId);
+        if (index < 0) return { error: { status: 404, data: 'Order not found' } };
+        ordersStore[index] = { ...ordersStore[index], trackingNumber, updatedAt: new Date().toISOString() };
+        setStored(STORAGE_KEYS.ORDERS, ordersStore);
+        return { data: ordersStore[index] };
+      },
+      invalidatesTags: (_result, _error, { orderId }) => [
+        { type: 'Order', id: orderId },
+        { type: 'Order', id: 'LIST' },
       ],
     }),
 
@@ -649,6 +753,64 @@ export const apiSlice = createApi({
     }),
 
     // 10. ADMIN DATA
+    getAdminCustomers: builder.query<AdminCustomer[], void>({
+      async queryFn() {
+        await sleep(200);
+        const customers = new Map<string, AdminCustomer>();
+        for (const order of ordersStore) {
+          const id = order.userId || order.shippingAddress.fullName;
+          const existing = customers.get(id);
+          const name = order.shippingAddress.fullName;
+          customers.set(id, {
+            id,
+            name,
+            email: `${name.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '')}@example.com`,
+            orderCount: (existing?.orderCount ?? 0) + 1,
+            totalSpent: (existing?.totalSpent ?? 0) + order.total,
+            active: customerStatusStore[id] ?? true,
+          });
+        }
+        return { data: [...customers.values()] };
+      },
+      providesTags: [{ type: 'User', id: 'ADMIN_LIST' }],
+    }),
+
+    setAdminCustomerStatus: builder.mutation<AdminCustomer, { id: string; active: boolean }>({
+      async queryFn({ id, active }) {
+        customerStatusStore[id] = active;
+        setStored('aura_customer_status_v1', customerStatusStore);
+        const matchedOrders = ordersStore.filter((item) => (item.userId || item.shippingAddress.fullName) === id);
+        const name = matchedOrders[0]?.shippingAddress.fullName ?? id;
+        return {
+          data: {
+            id,
+            name,
+            email: `${name.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '')}@example.com`,
+            orderCount: matchedOrders.length,
+            totalSpent: matchedOrders.reduce((sum, item) => sum + item.total, 0),
+            active,
+          },
+        };
+      },
+      invalidatesTags: [{ type: 'User', id: 'ADMIN_LIST' }],
+    }),
+
+    getAdminSettings: builder.query<AdminSettings, void>({
+      async queryFn() {
+        return { data: settingsStore };
+      },
+      providesTags: [{ type: 'AdminData', id: 'SETTINGS' }],
+    }),
+
+    updateAdminSettings: builder.mutation<AdminSettings, AdminSettings>({
+      async queryFn(settings) {
+        settingsStore = settings;
+        setStored('aura_admin_settings_v1', settingsStore);
+        return { data: settingsStore };
+      },
+      invalidatesTags: [{ type: 'AdminData', id: 'SETTINGS' }],
+    }),
+
     getAdminStats: builder.query<AdminStats, void>({
       async queryFn() {
         await sleep(300);
@@ -870,7 +1032,15 @@ export const {
   useUpdateProductMutation,
   useDeleteProductMutation,
   useGetCategoriesQuery,
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
   useGetReviewsQuery,
+  useGetAdminReviewsQuery,
+  useSetReviewApprovalMutation,
+  useGetAdminCouponsQuery,
+  useSaveAdminCouponMutation,
+  useDeleteAdminCouponMutation,
   useAddReviewMutation,
   useValidateCouponMutation,
   useGetCouponsQuery,
@@ -886,11 +1056,16 @@ export const {
   useUpdateOrderStatusMutation,
   useCancelOrderMutation,
   useReturnOrderMutation,
+  useUpdateOrderTrackingMutation,
   useProcessPaymentMutation,
   useGetCurrentUserQuery,
   useUpdateUserProfileMutation,
   useChangeUserPasswordMutation,
   useGetAdminStatsQuery,
+  useGetAdminCustomersQuery,
+  useSetAdminCustomerStatusMutation,
+  useGetAdminSettingsQuery,
+  useUpdateAdminSettingsMutation,
   useSubscribeNewsletterMutation,
   useGetCartQuery,
   useAddToCartMutationMutation,
