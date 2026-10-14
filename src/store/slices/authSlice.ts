@@ -54,6 +54,19 @@ export const authSlice = createSlice({
         // ignore
       }
     },
+    loginSuccess: (
+      state,
+      action: PayloadAction<{ user: User; token: string; rememberMe?: boolean }>
+    ) => {
+      state.user = action.payload.user;
+      state.token = action.payload.token;
+      state.isAuthenticated = true;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(action.payload));
+      } catch {
+        // ignore
+      }
+    },
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
@@ -77,5 +90,5 @@ export const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, updateUser, logout } = authSlice.actions;
+export const { setCredentials, loginSuccess, updateUser, logout } = authSlice.actions;
 export default authSlice.reducer;

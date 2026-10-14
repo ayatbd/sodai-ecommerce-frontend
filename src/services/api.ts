@@ -924,11 +924,18 @@ export const apiSlice = createApi({
     }),
 
     // 13. WISHLIST
-    getWishlist: builder.query<Product[], void>({
-      async queryFn() {
+    getWishlist: builder.query<Product[], { simulateError?: boolean } | void>({
+      async queryFn(args) {
+        if (args && args.simulateError) {
+          await sleep(250);
+          return { error: { status: 500, data: 'Simulated network failure loading wishlist' } };
+        }
         await sleep(200);
         try {
-          const res = await fetch('/api/v1/wishlist');
+          const authUser = userStore?.email;
+          const res = await fetch('/api/v1/wishlist', {
+            headers: authUser ? { Authorization: `Bearer ${authUser}` } : {},
+          });
           if (res.ok) {
             const data = await res.json();
             if (data && data.items) {
@@ -947,7 +954,7 @@ export const apiSlice = createApi({
       providesTags: [{ type: 'Wishlist', id: 'LIST' }],
     }),
 
-    addToWishlistMutation: builder.mutation<Product[], Product | string>({
+    addToWishlist: builder.mutation<Product[], Product | string>({
       async queryFn(productOrId) {
         await sleep(200);
         const prodId = typeof productOrId === 'string' ? productOrId : productOrId.id;
@@ -956,10 +963,14 @@ export const apiSlice = createApi({
             ? productsStore.find((p) => p.id === prodId)
             : productOrId;
 
+        const authUser = userStore?.email;
         try {
           await fetch(`/api/v1/wishlist/${prodId}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(authUser ? { Authorization: `Bearer ${authUser}` } : {}),
+            },
             body: JSON.stringify(product || {}),
           });
         } catch {
@@ -976,12 +987,14 @@ export const apiSlice = createApi({
       invalidatesTags: [{ type: 'Wishlist', id: 'LIST' }],
     }),
 
-    removeFromWishlistMutation: builder.mutation<Product[], string>({
+    removeFromWishlist: builder.mutation<Product[], string>({
       async queryFn(productId) {
         await sleep(150);
+        const authUser = userStore?.email;
         try {
           await fetch(`/api/v1/wishlist/${productId}`, {
             method: 'DELETE',
+            headers: authUser ? { Authorization: `Bearer ${authUser}` } : {},
           });
         } catch {
           // fallback
@@ -995,11 +1008,15 @@ export const apiSlice = createApi({
       invalidatesTags: [{ type: 'Wishlist', id: 'LIST' }],
     }),
 
-    clearWishlistMutation: builder.mutation<Product[], void>({
+    clearWishlist: builder.mutation<Product[], void>({
       async queryFn() {
         await sleep(150);
+        const authUser = userStore?.email;
         try {
-          await fetch('/api/v1/wishlist', { method: 'DELETE' });
+          await fetch('/api/v1/wishlist', {
+            method: 'DELETE',
+            headers: authUser ? { Authorization: `Bearer ${authUser}` } : {},
+          });
         } catch {
           // fallback
         }
@@ -1071,7 +1088,12 @@ export const {
   useAddToCartMutationMutation,
   useCheckCustomerEligibilityQuery,
   useGetWishlistQuery,
-  useAddToWishlistMutationMutation,
-  useRemoveFromWishlistMutationMutation,
-  useClearWishlistMutationMutation,
+  useAddToWishlistMutation,
+  useRemoveFromWishlistMutation,
+  useClearWishlistMutation,
 } = apiSlice;
+
+// Compatibility aliases
+export const useAddToWishlistMutationMutation = useAddToWishlistMutation;
+export const useRemoveFromWishlistMutationMutation = useRemoveFromWishlistMutation;
+export const useClearWishlistMutationMutation = useClearWishlistMutation;

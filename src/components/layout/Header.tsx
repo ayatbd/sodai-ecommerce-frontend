@@ -87,7 +87,7 @@ export function Header() {
               <span className="inline-flex items-center gap-1.5">
                 <Tag className="h-3 w-3 text-amber-400 shrink-0" />
                 <span>
-                  Use code <strong className="text-white font-mono tracking-wider">AURA15</strong> for 15% off
+                  Use code <strong className="text-white font-mono tracking-wider">SODAI15</strong> for 15% off
                 </span>
               </span>
             </div>
@@ -122,15 +122,15 @@ export function Header() {
               <a
                 href="#home"
                 onClick={handleLogoClick}
-                aria-label="AURA Home"
+                aria-label="SODAI Home"
                 className="group flex items-center gap-2.5 outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 rounded-lg p-1"
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-950 text-white font-mono text-sm font-bold tracking-tight shadow-md dark:bg-neutral-100 dark:text-neutral-950 transition-transform group-hover:scale-105">
-                  AU
+                  SD
                 </div>
                 <div className="flex flex-col">
                   <span className="text-lg font-extrabold tracking-widest text-neutral-950 dark:text-white font-mono">
-                    AURA
+                    SODAI
                   </span>
                   <span className="text-[9px] uppercase tracking-widest text-neutral-400 font-sans -mt-1 font-medium hidden sm:block">
                     Design & Lifestyle

@@ -68,6 +68,14 @@ export function DesktopNavigation() {
     }
   };
 
+  const handleAboutClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    dispatch(setCurrentView('about'));
+    if (typeof window !== 'undefined' && window.location.pathname !== '/about') {
+      window.history.pushState({}, '', '/about');
+    }
+  };
+
   return (
     <>
       <nav aria-label="Main Navigation" className="hidden lg:flex items-center gap-1 xl:gap-2">
@@ -181,10 +189,14 @@ export function DesktopNavigation() {
           <span>Best Sellers</span>
         </button>
 
-        {/* About Dialog Trigger */}
+        {/* About Page Link */}
         <button
-          onClick={() => setIsAboutDialogOpen(true)}
-          className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white"
+          onClick={handleAboutClick}
+          className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:text-neutral-950 dark:hover:text-white ${
+            currentView === 'about'
+              ? 'text-neutral-950 dark:text-white font-semibold'
+              : 'text-neutral-600 dark:text-neutral-400'
+          }`}
         >
           <Info className="h-3.5 w-3.5 text-neutral-400" />
           <span>About</span>

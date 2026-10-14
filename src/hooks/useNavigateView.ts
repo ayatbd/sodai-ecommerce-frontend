@@ -5,6 +5,7 @@ import { setCurrentView, setActiveOrderId, AppView } from '../store/slices/uiSli
 const VIEW_PATHS: Record<AppView, string> = {
   home: '/',
   shop: '/shop',
+  about: '/about',
   'product-detail': '/products',
   checkout: '/checkout',
   orders: '/account/orders',

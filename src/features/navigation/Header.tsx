@@ -69,7 +69,7 @@ export function Header() {
       <div className="bg-neutral-900 px-4 py-1.5 text-center text-xs font-medium text-neutral-200 dark:bg-neutral-900 dark:text-neutral-300">
         <span>Complimentary carbon-neutral worldwide shipping on orders over $150</span>
         <span className="mx-2 opacity-40">|</span>
-        <span className="font-mono text-neutral-400">Use code <span className="text-white font-semibold underline decoration-neutral-500">AURA15</span> for 15% off</span>
+        <span className="font-mono text-neutral-400">Use code <span className="text-white font-semibold underline decoration-neutral-500">SODAI15</span> for 15% off</span>
       </div>
 
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
@@ -94,11 +94,11 @@ export function Header() {
             className="flex items-center gap-2.5 text-left focus-visible:outline-none"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-bold tracking-tighter text-sm">
-              AU
+              SD
             </div>
             <div>
               <span className="text-lg font-bold tracking-tight text-neutral-950 dark:text-white">
-                AURA
+                SODAI
               </span>
               <span className="hidden sm:inline-block ml-1.5 text-[10px] uppercase font-mono tracking-widest text-neutral-400">
                 STUDIO

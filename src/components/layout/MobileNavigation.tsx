@@ -67,10 +67,14 @@ export function MobileNavigation() {
     dispatch(setMobileMenuOpen(false));
   };
 
-  const navigateTo = (view: 'shop' | 'orders' | 'addresses' | 'admin', category: string = 'all') => {
+  const navigateTo = (view: 'shop' | 'orders' | 'addresses' | 'admin' | 'about', category: string = 'all') => {
     dispatch(setSelectedCategory(category));
     dispatch(setSearchQuery(''));
     dispatch(setCurrentView(view));
+    if (typeof window !== 'undefined') {
+      const path = view === 'about' ? '/about' : view === 'shop' ? '/shop' : `/${view}`;
+      window.history.pushState({}, '', path);
+    }
     closeMenu();
   };
 
@@ -255,6 +259,18 @@ export function MobileNavigation() {
           >
             <Flame className="h-4 w-4 text-rose-500" />
             <span>Best Sellers</span>
+          </button>
+
+          <button
+            onClick={() => navigateTo('about')}
+            className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+              currentView === 'about'
+                ? 'bg-neutral-100 font-semibold text-neutral-950 dark:bg-neutral-800 dark:text-white'
+                : 'text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-900'
+            }`}
+          >
+            <Info className="h-4 w-4 text-neutral-400" />
+            <span>About Our Studio</span>
           </button>
         </div>
 

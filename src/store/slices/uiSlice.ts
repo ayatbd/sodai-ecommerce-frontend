@@ -4,6 +4,7 @@ import { Product, ToastMessage } from '../../types';
 export type AppView =
   | 'home'
   | 'shop'
+  | 'about'
   | 'product-detail'
   | 'checkout'
   | 'orders'
@@ -66,6 +67,7 @@ const getInitialView = (): AppView => {
       if (path === '/reset-password') return 'reset-password';
       if (path === '/verify-email') return 'verify-email';
       if (path === '/wishlist') return 'wishlist';
+      if (path === '/about') return 'about';
       if (
         path.startsWith('/shop') ||
         path.startsWith('/search') ||

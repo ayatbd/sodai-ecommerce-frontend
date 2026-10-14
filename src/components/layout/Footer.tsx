@@ -82,13 +82,13 @@ export function Footer() {
       const res = await subscribeNewsletter({ email: data.email }).unwrap();
       setNewsletterStatus({
         type: 'success',
-        message: res.message || 'Thank you for joining the AURA dispatch.',
+        message: res.message || 'Thank you for joining the SODAI dispatch.',
       });
       reset();
       dispatch(
         addToast({
           title: 'Newsletter Subscribed',
-          description: 'Welcome to AURA private previews & archive updates.',
+          description: 'Welcome to SODAI private previews & archive updates.',
           type: 'success',
         })
       );
@@ -197,11 +197,11 @@ export function Footer() {
             <div className="space-y-4 lg:col-span-2">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-900 text-white font-mono text-xs font-bold dark:bg-white dark:text-neutral-900 shadow-xs">
-                  AU
+                  SD
                 </div>
                 <div>
                   <span className="font-extrabold tracking-widest text-base text-neutral-950 dark:text-white font-mono">
-                    AURA
+                    SODAI
                   </span>
                   <span className="block text-[9px] text-neutral-400 uppercase tracking-widest font-sans -mt-0.5">
                     Design & Lifestyle
@@ -223,7 +223,7 @@ export function Footer() {
                     href="https://facebook.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="AURA on Facebook"
+                    aria-label="SODAI on Facebook"
                     className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-600 transition-colors hover:border-neutral-900 hover:bg-neutral-100 hover:text-neutral-950 dark:border-neutral-800 dark:text-neutral-400 dark:hover:border-neutral-200 dark:hover:bg-neutral-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 dark:focus-visible:ring-white"
                   >
                     <Facebook className="h-4 w-4" />
@@ -232,7 +232,7 @@ export function Footer() {
                     href="https://instagram.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="AURA on Instagram"
+                    aria-label="SODAI on Instagram"
                     className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-600 transition-colors hover:border-neutral-900 hover:bg-neutral-100 hover:text-neutral-950 dark:border-neutral-800 dark:text-neutral-400 dark:hover:border-neutral-200 dark:hover:bg-neutral-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 dark:focus-visible:ring-white"
                   >
                     <Instagram className="h-4 w-4" />
@@ -393,7 +393,13 @@ export function Footer() {
                 <ul className="space-y-2 text-xs text-neutral-600 dark:text-neutral-400">
                   <li>
                     <button
-                      onClick={() => setActiveModal('about')}
+                      onClick={() => {
+                        dispatch(setCurrentView('about'));
+                        if (typeof window !== 'undefined') {
+                          window.history.pushState({}, '', '/about');
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
                       className="transition-colors hover:text-neutral-950 dark:hover:text-white text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 rounded-xs"
                     >
                       About Us
@@ -526,7 +532,7 @@ export function Footer() {
           {/* 7. Footer Bottom Section */}
           <div className="mt-8 pt-6 border-t border-neutral-150 dark:border-neutral-800/80 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-neutral-500 dark:text-neutral-400">
             <p>
-              &copy; {new Date().getFullYear()} AURA Studio Inc. All rights reserved. Designed for mindful workspaces.
+              &copy; {new Date().getFullYear()} SODAI Studio Inc. All rights reserved. Designed for mindful workspaces.
             </p>
 
             <div className="flex flex-wrap items-center gap-4">
